@@ -572,7 +572,7 @@ export default function AuthPage() {
           position: "fixed",
           inset: 0,
           zIndex: 0,
-          backgroundImage: `url("/mafia_auth_bg.png")`,
+          backgroundImage: `url("/images/mafia_auth_bg.png")`,
           backgroundSize: "cover",
           backgroundPosition: "center",
           backgroundRepeat: "no-repeat",

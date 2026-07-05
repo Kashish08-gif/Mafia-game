@@ -11,6 +11,7 @@ import friendRouter from "./routes/friend.route.js";
 import authRouter from "./routes/authRoute.js";
 import roomRouter from "./routes/roomRouter.js";
 import userRouter from "./routes/userRouter.js";
+import gameRouter from "./routes/gameRouter.js";
 
 import path from "path";
 import http from "http";
@@ -26,6 +27,7 @@ app.use("/api/profile", profileRoute);
 
 app.use("/api/leaderboard", leaderboardRoute);
 app.use("/api/auth", authRouter);
+app.use("/api/game", authMiddleware, gameRouter);
 
 app.get("/", (req, res) => {
   return res.status(200).json({

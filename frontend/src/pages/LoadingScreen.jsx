@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, useParams } from "react-router-dom";
-import "./LoadingScreen.css";
+import "../styles/loading.css";
 
 const BACKEND_BASE = "http://localhost:5000/api";
 
@@ -106,7 +106,7 @@ export default function LoadingScreen() {
 
         {step >= 2 && (
           <motion.img
-            src="/logo.png"
+            src="/images/logo.png"
             className="logo"
             initial={{
               scale: 0,

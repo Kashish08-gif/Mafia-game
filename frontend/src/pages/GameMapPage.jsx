@@ -6,13 +6,9 @@
 // • Top: day/night clock + alive count
 // • Right: mini-map + action buttons (REPORT, USE, CROUCH, RUN)
 // • Bottom: TASKS, MAP, INTERACT, EMOTE, INVENTORY
-// • Voting modal (day phase)
-
+// • Voting
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Sky, Stars } from "@react-three/drei";
-import * as THREE from "three";
 import {
   Wifi,
   Settings,
@@ -26,21 +22,21 @@ import {
   MapPin,
   Smile,
   Briefcase,
-  Send,
-  Skull,
   Shield,
   Heart,
   User,
   Swords,
-  Vote,
 } from "lucide-react";
 import { getSocket, disconnectSocket } from "../services/socket.js";
 import { getRoomDetails } from "../services/roomService.js";
-import CasinoMap, {
-  BUILDINGS,
-  FOUNTAIN_POS,
-} from "../components/CasinoMap.jsx";
-import PlayerAvatar from "../components/PlayerAvatar.jsx";
+import { BUILDINGS, FOUNTAIN_POS } from "../components/CasinoMap.jsx";
+// Import modular game sub-components
+import GameCanvasOptimized from "../components/game/GameCanvasOptimized.jsx";
+import PlayerList from "../components/game/PlayerList.jsx";
+import ChatBox from "../components/game/ChatBox.jsx";
+import VotingPanel from "../components/game/VotingPanel.jsx";
+import MiniMap from "../components/game/MiniMap.jsx";
+import PerformanceHUD from "../components/game/PerformanceHUD.jsx";
 
 // ── role meta ──────────────────────────────────────────────
 const ROLE_META = {
@@ -90,440 +86,7 @@ const NAME_COLORS = [
   "#ec407a",
   "#26a69a",
   "#ffee58",
-];
-
-// ── Character controller (3rd-person follow camera + WASD) ──
-function CharacterController({
-  position,
-  setPosition,
-  rotation,
-  setRotation,
-  onMoving,
-}) {
-  const { camera } = useThree();
-  const keys = useRef({});
-  const yaw = useRef(rotation);
-  const dragging = useRef(false);
-  const lastMouse = useRef({ x: 0, y: 0 });
-  const moveAccumRef = useRef(0);
-
-  useEffect(() => {
-    const dn = (e) => {
-      keys.current[e.code] = true;
-    };
-    const up = (e) => {
-      keys.current[e.code] = false;
-    };
-    const md = (e) => {
-      if (e.button === 2) {
-        dragging.current = true;
-        lastMouse.current = { x: e.clientX, y: e.clientY };
-      }
-    };
-    const mu = (e) => {
-      if (e.button === 2) dragging.current = false;
-    };
-    const mm = (e) => {
-      if (!dragging.current) return;
-      const dx = e.clientX - lastMouse.current.x;
-      lastMouse.current = { x: e.clientX, y: e.clientY };
-      yaw.current -= dx * 0.005;
-    };
-    const ctx = (e) => e.preventDefault();
-    window.addEventListener("keydown", dn);
-    window.addEventListener("keyup", up);
-    window.addEventListener("mousedown", md);
-    window.addEventListener("mouseup", mu);
-    window.addEventListener("mousemove", mm);
-    window.addEventListener("contextmenu", ctx);
-    return () => {
-      window.removeEventListener("keydown", dn);
-      window.removeEventListener("keyup", up);
-      window.removeEventListener("mousedown", md);
-      window.removeEventListener("mouseup", mu);
-      window.removeEventListener("mousemove", mm);
-      window.removeEventListener("contextmenu", ctx);
-    };
-  }, []);
-
-  useFrame((state, delta) => {
-    const k = keys.current;
-    const sprint = k["ShiftLeft"] || k["ShiftRight"];
-    const speed = (sprint ? 9 : 5) * delta;
-    let dx = 0,
-      dz = 0;
-    if (k["KeyW"] || k["ArrowUp"]) dz -= 1;
-    if (k["KeyS"] || k["ArrowDown"]) dz += 1;
-    if (k["KeyA"] || k["ArrowLeft"]) dx -= 1;
-    if (k["KeyD"] || k["ArrowRight"]) dx += 1;
-    const moving = dx !== 0 || dz !== 0;
-    if (moving) {
-      const len = Math.hypot(dx, dz);
-      dx /= len;
-      dz /= len;
-      const cos = Math.cos(yaw.current),
-        sin = Math.sin(yaw.current);
-      const worldDx = dx * cos - dz * sin;
-      const worldDz = dx * sin + dz * cos;
-      const nx = position[0] + worldDx * speed;
-      const nz = position[2] + worldDz * speed;
-      // Boundary + simple collision with buildings
-      const blocked = BUILDINGS.some((b) => {
-        if (b.id === "garden" || b.id === "helipad") return false; // flat zones
-        const [bx, bz] = b.pos;
-        const [bw, , bd] = b.size;
-        return (
-          Math.abs(nx - bx) < bw / 2 + 0.4 && Math.abs(nz - bz) < bd / 2 + 0.4
-        );
-      });
-      const outOfBounds = Math.abs(nx) > 43 || Math.abs(nz) > 43;
-      if (!blocked && !outOfBounds) {
-        setPosition([nx, 0, nz]);
-        // face movement direction
-        const heading = Math.atan2(worldDx, worldDz);
-        setRotation(heading);
-      }
-      moveAccumRef.current += delta;
-    }
-    onMoving(moving);
-
-    // 3rd-person camera
-    const camDist = 9,
-      camHeight = 5.5;
-    const cx = position[0] - Math.sin(yaw.current) * camDist;
-    const cz = position[2] - Math.cos(yaw.current) * camDist;
-    camera.position.lerp(
-      { x: cx, y: camHeight, z: cz },
-      Math.min(1, delta * 6),
-    );
-    camera.lookAt(position[0], 1.4, position[2]);
-  });
-
-  return null;
-}
-
-// ── Tiny scene component that owns my player + remote players ──
-function Scene({
-  myPos,
-  setMyPos,
-  myRot,
-  setMyRot,
-  players,
-  phase,
-  onMovingChange,
-  myName,
-  myColor,
-  myRole,
-  isAlive,
-}) {
-  return (
-    <>
-      {phase === "NIGHT" ? (
-        <>
-          <color attach="background" args={["#04020a"]} />
-          <Stars
-            radius={120}
-            depth={50}
-            count={3000}
-            factor={4}
-            fade
-            speed={1}
-          />
-        </>
-      ) : (
-        <>
-          <color attach="background" args={["#1a1525"]} />
-          <Sky
-            distance={450000}
-            sunPosition={[10, 8, -5]}
-            inclination={0.49}
-            azimuth={0.25}
-            turbidity={8}
-            rayleigh={2}
-          />
-        </>
-      )}
-      <CasinoMap phase={phase} />
-      <CharacterController
-        position={myPos}
-        setPosition={setMyPos}
-        rotation={myRot}
-        setRotation={setMyRot}
-        onMoving={onMovingChange}
-      />
-      {/* My avatar */}
-      <PlayerAvatar
-        position={myPos}
-        rotation={myRot}
-        color={myColor}
-        name={myName}
-        role={myRole}
-        isMe
-        isAlive={isAlive}
-      />
-      {/* Remote players */}
-      {players.map((p) => (
-        <PlayerAvatar
-          key={p.id}
-          position={[
-            p.position?.x || 0,
-            p.position?.y || 0,
-            p.position?.z || 0,
-          ]}
-          rotation={p.rotation || 0}
-          color={p.color}
-          name={p.username}
-          isAlive={p.isAlive !== false}
-          walking={!!p.walking}
-        />
-      ))}
-    </>
-  );
-}
-
-// ── Mini-map (top-right) ─────────────────────────────────────
-function MiniMap({ myPos, players, myColor }) {
-  const W = 180,
-    H = 140;
-  const worldToMap = (x, z) => ({
-    left: ((x + 45) / 90) * W,
-    top: ((z + 45) / 90) * H,
-  });
-  return (
-    <div
-      data-testid="mini-map"
-      style={{
-        width: W,
-        height: H,
-        position: "relative",
-        background:
-          "radial-gradient(ellipse at center, rgba(50,30,40,0.85), rgba(10,5,15,0.95))",
-        border: "1.5px solid rgba(255,180,80,0.4)",
-        borderRadius: 90,
-        overflow: "hidden",
-        boxShadow: "0 0 16px rgba(0,0,0,0.6)",
-      }}
-    >
-      {BUILDINGS.map((b) => {
-        const { left, top } = worldToMap(b.pos[0], b.pos[1]);
-        const [w, , d] = b.size;
-        return (
-          <div
-            key={b.id}
-            style={{
-              position: "absolute",
-              left: left - ((w / 90) * W) / 2,
-              top: top - ((d / 90) * H) / 2,
-              width: (w / 90) * W,
-              height: (d / 90) * H,
-              background: "rgba(120,80,60,0.55)",
-              border: `1px solid ${b.neon}77`,
-              fontSize: 7,
-              color: "#fff",
-              textAlign: "center",
-              lineHeight: "8px",
-              paddingTop: 2,
-              fontWeight: 700,
-              letterSpacing: "0.04em",
-            }}
-          >
-            {b.label.split(" ")[0]}
-          </div>
-        );
-      })}
-      {/* Fountain */}
-      <div
-        style={{
-          position: "absolute",
-          left: worldToMap(FOUNTAIN_POS[0], FOUNTAIN_POS[1]).left - 5,
-          top: worldToMap(FOUNTAIN_POS[0], FOUNTAIN_POS[1]).top - 5,
-          width: 10,
-          height: 10,
-          borderRadius: "50%",
-          background: "#ffd700",
-          boxShadow: "0 0 8px #ffd700",
-        }}
-      />
-      {/* Other players */}
-      {players.map((p) => {
-        const { left, top } = worldToMap(
-          p.position?.x || 0,
-          p.position?.z || 0,
-        );
-        return (
-          <div
-            key={p.id}
-            style={{
-              position: "absolute",
-              left: left - 3,
-              top: top - 3,
-              width: 6,
-              height: 6,
-              borderRadius: "50%",
-              background: p.color || "#fff",
-              boxShadow: `0 0 4px ${p.color || "#fff"}`,
-            }}
-          />
-        );
-      })}
-      {/* Me (arrow) */}
-      {(() => {
-        const { left, top } = worldToMap(myPos[0], myPos[2]);
-        return (
-          <div
-            style={{
-              position: "absolute",
-              left: left - 6,
-              top: top - 6,
-              width: 12,
-              height: 12,
-              borderRadius: "50%",
-              background: myColor,
-              border: "2px solid #fff",
-              boxShadow: `0 0 8px ${myColor}`,
-            }}
-          />
-        );
-      })()}
-    </div>
-  );
-}
-
-// ── Voting Panel (modal) ─────────────────────────────────────
-function VotingPanel({ players, tally, onVote, onClose, myId }) {
-  return (
-    <div
-      data-testid="voting-panel"
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 50,
-        background: "rgba(0,0,0,0.7)",
-        backdropFilter: "blur(6px)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        pointerEvents: "auto",
-      }}
-    >
-      <div
-        style={{
-          background:
-            "linear-gradient(180deg, rgba(20,8,15,0.98), rgba(8,4,10,0.98))",
-          border: "1.5px solid rgba(255,68,85,0.4)",
-          borderRadius: 16,
-          padding: 28,
-          width: 520,
-          maxWidth: "92vw",
-          color: "#fff",
-        }}
-      >
-        <h2
-          style={{
-            fontSize: 22,
-            color: "#ff4455",
-            letterSpacing: "0.06em",
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-          }}
-        >
-          <Vote size={22} /> VOTE TO ELIMINATE
-        </h2>
-        <p style={{ color: "#aaa", fontSize: 12, margin: "6px 0 16px" }}>
-          Pick the player you suspect is Mafia. Day discussion happens at the
-          fountain.
-        </p>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: 8,
-            maxHeight: 320,
-            overflowY: "auto",
-          }}
-        >
-          {players
-            .filter((p) => p.id !== myId && p.isAlive !== false)
-            .map((p) => {
-              const votes = tally[p.id] || 0;
-              return (
-                <button
-                  key={p.id}
-                  data-testid={`vote-${p.id}`}
-                  onClick={() => onVote(p.id)}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    padding: "10px 14px",
-                    borderRadius: 10,
-                    background: "rgba(255,255,255,0.04)",
-                    border: "1px solid rgba(255,68,85,0.2)",
-                    color: "#fff",
-                    cursor: "pointer",
-                    textAlign: "left",
-                    transition: "all 0.18s",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "rgba(255,68,85,0.12)";
-                    e.currentTarget.style.borderColor = "#ff4455";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "rgba(255,255,255,0.04)";
-                    e.currentTarget.style.borderColor = "rgba(255,68,85,0.2)";
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: "50%",
-                      background: p.color,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontWeight: 800,
-                    }}
-                  >
-                    {p.username?.[0]?.toUpperCase() || "?"}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, fontSize: 14 }}>
-                      {p.username}
-                    </div>
-                    <div style={{ fontSize: 11, color: "#888" }}>
-                      {votes} vote{votes !== 1 ? "s" : ""}
-                    </div>
-                  </div>
-                  <Skull size={16} color="#ff4455" />
-                </button>
-              );
-            })}
-        </div>
-        <button
-          onClick={onClose}
-          data-testid="voting-close"
-          style={{
-            marginTop: 18,
-            width: "100%",
-            padding: "12px",
-            borderRadius: 8,
-            background: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(255,255,255,0.12)",
-            color: "#aaa",
-            cursor: "pointer",
-            letterSpacing: "0.06em",
-            fontWeight: 700,
-          }}
-        >
-          CLOSE
-        </button>
-      </div>
-    </div>
-  );
-}
-
+]
 // ── Main Page ────────────────────────────────────────────────
 export default function GameMapPage() {
   const { roomId = "demo" } = useParams();
@@ -559,7 +122,6 @@ export default function GameMapPage() {
   // Game state
   const [myPos, setMyPos] = useState([0, 0, 6]);
   const [myRot, setMyRot] = useState(0);
-  const [isMoving, setIsMoving] = useState(false);
   const [players, setPlayers] = useState([]); // remote players
   const [phase, setPhase] = useState("DAY");
   const [timer, setTimer] = useState(165);
@@ -567,12 +129,9 @@ export default function GameMapPage() {
   const [myRole, setMyRole] = useState("villager");
   const [isAlive, setIsAlive] = useState(true);
   const [chat, setChat] = useState([]);
-  const [chatInput, setChatInput] = useState("");
   const [voteTally, setVoteTally] = useState({});
   const [showVote, setShowVote] = useState(false);
   const [muted, setMuted] = useState(false);
-
-  const chatBoxRef = useRef(null);
   const lastEmitRef = useRef(0);
 
   // Total players in the DB room, default to 5
@@ -767,27 +326,7 @@ export default function GameMapPage() {
     });
   }, [myPos, myRot, roomId]);
 
-  // Auto-scroll chat
-  useEffect(() => {
-    if (chatBoxRef.current)
-      chatBoxRef.current.scrollTop = chatBoxRef.current.scrollHeight;
-  }, [chat]);
 
-  const sendChat = useCallback(
-    (e) => {
-      e?.preventDefault?.();
-      if (!chatInput.trim()) return;
-      const sock = getSocket();
-      sock.emit("send-chat", roomId, {
-        sender: myName,
-        text: chatInput,
-        color: myColor,
-        ts: Date.now(),
-      });
-      setChatInput("");
-    },
-    [chatInput, roomId, myName, myColor],
-  );
 
   const castVote = (targetId) => {
     const sock = getSocket();
@@ -826,27 +365,21 @@ export default function GameMapPage() {
         fontFamily: "Inter, system-ui, sans-serif",
       }}
     >
-      {/* 3D Canvas */}
-      <Canvas
-        shadows
-        camera={{ position: [0, 6, 10], fov: 55 }}
-        style={{ position: "absolute", inset: 0 }}
-        data-testid="game-3d-canvas"
-      >
-        <Scene
-          myPos={myPos}
-          setMyPos={setMyPos}
-          myRot={myRot}
-          setMyRot={setMyRot}
-          players={players}
-          phase={phase}
-          onMovingChange={setIsMoving}
-          myName={myName}
-          myColor={myColor}
-          myRole={myRole}
-          isAlive={isAlive}
-        />
-      </Canvas>
+      {/* 3D Canvas with Performance Optimization */}
+      <GameCanvasOptimized
+        myPos={myPos}
+        setMyPos={setMyPos}
+        myRot={myRot}
+        setMyRot={setMyRot}
+        myName={myName}
+        myColor={myColor}
+        myRole={myRole}
+        isAlive={isAlive}
+        players={players}
+        phase={phase}
+        onMovingChange={() => {}} // Callback not used
+        buildings={BUILDINGS}
+      />
 
       {/* TOP-LEFT: Room banner */}
       <div
@@ -893,114 +426,15 @@ export default function GameMapPage() {
       </div>
 
       {/* LEFT: Players Alive list */}
-      <div
-        data-testid="hud-players-list"
-        style={{
-          position: "absolute",
-          top: 74,
-          left: 16,
-          width: 270,
-          background: "linear-gradient(180deg, rgba(28,9,38,0.85) 0%, rgba(8,4,12,0.95) 100%)",
-          backdropFilter: "blur(12px)",
-          border: "1.5px solid rgba(255, 215, 0, 0.25)",
-          borderRadius: 16,
-          padding: 16,
-          boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
-          zIndex: 10,
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 12,
-            fontSize: 12,
-            color: "#ffd700",
-            fontWeight: 800,
-            letterSpacing: "0.05em",
-            borderBottom: "1px solid rgba(255, 215, 0, 0.15)",
-            paddingBottom: 6,
-          }}
-        >
-          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>👥 Players Alive</span>
-          <span style={{ color: "#5ad15a", background: 'rgba(90,209,90,0.1)', padding: '2px 8px', borderRadius: 8 }}>
-            {aliveCount}/{totalPlayers}
-          </span>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 180, overflowY: 'auto' }}>
-          {[
-            { id: myId, username: myName, color: myColor, isAlive },
-            ...players,
-          ].map((p, i) => (
-            <div
-              key={p.id}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                background: 'rgba(255,255,255,0.03)',
-                padding: '6px 10px',
-                borderRadius: 8,
-                border: '1px solid rgba(255,255,255,0.04)',
-              }}
-            >
-              <span style={{ color: "#ffd70088", fontSize: 11, fontWeight: 700, width: 12 }}>
-                {i + 1}
-              </span>
-              <div
-                style={{
-                  width: 26,
-                  height: 26,
-                  borderRadius: "50%",
-                  background: p.color,
-                  border: '1.5px solid #fff',
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 12,
-                  fontWeight: 900,
-                  color: '#000',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
-                }}
-              >
-                {p.username?.[0]?.toUpperCase()}
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: p.isAlive !== false ? '#fff' : '#888' }}>
-                  {p.username}
-                </div>
-                <div
-                  style={{
-                    height: 3,
-                    background: p.isAlive !== false ? "#5ad15a" : "#ff4455",
-                    borderRadius: 2,
-                    marginTop: 2,
-                    boxShadow: p.isAlive !== false ? '0 0 6px #5ad15a' : '0 0 6px #ff4455',
-                  }}
-                />
-              </div>
-              {p.id === myId ? (
-                <span
-                  style={{
-                    fontSize: 8,
-                    background: "linear-gradient(90deg, #7c3aed, #4f46e5)",
-                    padding: "2px 6px",
-                    borderRadius: 6,
-                    fontWeight: 800,
-                    letterSpacing: '0.05em',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.4)',
-                  }}
-                >
-                  YOU
-                </span>
-              ) : !p.isAlive && (
-                <span style={{ fontSize: 10 }}>💀</span>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
+      <PlayerList
+        myId={myId}
+        myName={myName}
+        myColor={myColor}
+        isAlive={isAlive}
+        players={players}
+        aliveCount={aliveCount}
+        totalPlayers={totalPlayers}
+      />
 
       {/* LEFT-MIDDLE: Role panel */}
       <div
@@ -1090,96 +524,22 @@ export default function GameMapPage() {
           position: "absolute",
           bottom: 16,
           left: 16,
-          width: 320,
-          background: "linear-gradient(180deg, rgba(12,4,18,0.85) 0%, rgba(5,2,8,0.95) 100%)",
-          backdropFilter: "blur(12px)",
-          border: "1.5px solid rgba(255, 215, 0, 0.2)",
-          borderRadius: 16,
-          padding: 12,
-          boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
           zIndex: 10,
-          display: "flex",
-          flexDirection: "column",
-          gap: 10,
         }}
       >
-        <div
-          ref={chatBoxRef}
-          style={{
-            height: 150,
-            overflowY: "auto",
-            display: "flex",
-            flexDirection: "column",
-            gap: 6,
-            fontSize: 12,
-            paddingRight: 4,
+        <ChatBox
+          messages={chat}
+          onSend={(text) => {
+            const sock = getSocket();
+            sock.emit("send-chat", roomId, {
+              sender: myName,
+              text,
+              color: myColor,
+              ts: Date.now(),
+            });
           }}
-        >
-          {chat.length === 0 && (
-            <div style={{ color: "#555", textAlign: "center", marginTop: 55, fontSize: 11 }}>
-              No messages in chat ledger yet.
-            </div>
-          )}
-          {chat.map((m, i) => (
-            <div key={i} style={{
-              background: m.sender === 'System' ? 'transparent' : 'rgba(255,255,255,0.02)',
-              padding: m.sender === 'System' ? '2px 0' : '4px 8px',
-              borderRadius: 6,
-            }}>
-              {m.sender === "System" ? (
-                <span
-                  style={{ color: m.color || "#ffd700", fontStyle: "italic", fontWeight: 600 }}
-                >
-                  🔔 {m.text}
-                </span>
-              ) : (
-                <span>
-                  <span
-                    style={{ color: m.color || "#ff4455", fontWeight: 800 }}
-                  >
-                    {m.sender}:
-                  </span>{" "}
-                  <span style={{ color: "#eee", fontWeight: 500 }}>{m.text}</span>
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
-        <form onSubmit={sendChat} style={{ display: "flex", gap: 6 }}>
-          <input
-            data-testid="chat-input"
-            value={chatInput}
-            onChange={(e) => setChatInput(e.target.value)}
-            placeholder="Whisper to room..."
-            style={{
-              flex: 1,
-              padding: "10px 14px",
-              borderRadius: 10,
-              background: "rgba(0,0,0,0.5)",
-              border: "1.2px solid rgba(255, 215, 0, 0.25)",
-              color: "#fff",
-              outline: "none",
-              fontSize: 12,
-            }}
-          />
-          <button
-            data-testid="chat-send"
-            type="submit"
-            style={{
-              padding: "6px 16px",
-              borderRadius: 10,
-              background: "linear-gradient(135deg, #cc1122, #99000a)",
-              border: "1px solid #ff445555",
-              color: "#fff",
-              cursor: "pointer",
-              fontWeight: 900,
-              fontSize: 11,
-              letterSpacing: "0.08em",
-            }}
-          >
-            SEND
-          </button>
-        </form>
+          myColor={myColor}
+        />
       </div>
 
       {/* TOP CENTER: Day/Night clock */}
@@ -1241,6 +601,9 @@ export default function GameMapPage() {
           zIndex: 10,
         }}
       >
+        {/* Performance HUD */}
+        <PerformanceHUD />
+
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {[
             { icon: <Settings size={18} />, t: "settings" },
@@ -1273,7 +636,13 @@ export default function GameMapPage() {
             </button>
           ))}
         </div>
-        <MiniMap myPos={myPos} players={players} myColor={myColor} />
+        <MiniMap
+          myPos={myPos}
+          players={players}
+          myColor={myColor}
+          buildings={BUILDINGS}
+          fountainPos={FOUNTAIN_POS}
+        />
       </div>
 
       {/* RIGHT-BOTTOM: Action buttons */}
@@ -1327,8 +696,8 @@ export default function GameMapPage() {
               width: 64,
               height: 64,
               borderRadius: "50%",
-              background: a.color === '#ff4455' 
-                ? "radial-gradient(circle, #cc1122 0%, #66000a 100%)" 
+              background: a.color === '#ff4455'
+                ? "radial-gradient(circle, #cc1122 0%, #66000a 100%)"
                 : "radial-gradient(circle, #2d2a33 0%, #151319 100%)",
               border: `2px double ${a.color === '#ff4455' ? '#ffd700' : 'rgba(255,255,255,0.4)'}`,
               color: a.color === '#ff4455' ? '#fff' : '#eee',
@@ -1396,8 +765,8 @@ export default function GameMapPage() {
               width: a.big ? 76 : 58,
               height: a.big ? 76 : 58,
               borderRadius: "50%",
-              background: a.big 
-                ? "radial-gradient(circle, #b8860b 0%, #5a3d06 100%)" 
+              background: a.big
+                ? "radial-gradient(circle, #b8860b 0%, #5a3d06 100%)"
                 : "radial-gradient(circle, rgba(140,15,30,0.92) 0%, rgba(20,5,10,0.96) 100%)",
               border: a.big ? "2.5px double #ffffff" : "2.5px double #ffd700",
               color: "#fff",

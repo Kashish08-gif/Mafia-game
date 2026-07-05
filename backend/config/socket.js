@@ -1,6 +1,5 @@
 import { Server } from "socket.io";
 
-// In-memory store for active map sessions: { [roomId]: { players: { [socketId]: userData } } }
 const mapRooms = {};
 
 export const initializeSocket = (server) => {
@@ -18,8 +17,6 @@ export const initializeSocket = (server) => {
     socket.on("join-map", (roomId, userData) => {
       currentRoomId = roomId;
       socket.join(roomId);
-
-      // Initialize room store if not exists
       if (!mapRooms[roomId]) {
         mapRooms[roomId] = {
           players: {},
@@ -28,15 +25,12 @@ export const initializeSocket = (server) => {
           timer: 165
         };
       }
-
-      // Store current player data (including position, name, color, role)
       mapRooms[roomId].players[socket.id] = {
         id: socket.id,
         ...userData,
         isAlive: userData.isAlive !== false
       };
 
-      // 1. Send the current map snapshot (list of all active players in the room) to the joining player
       const activePlayers = Object.values(mapRooms[roomId].players);
       socket.emit("map-snapshot", {
         players: activePlayers,
@@ -45,7 +39,6 @@ export const initializeSocket = (server) => {
         timer: mapRooms[roomId].timer
       });
 
-      // 2. Broadcast player-joined to everyone else in the room
       socket.to(roomId).emit("player-joined", {
         id: socket.id,
         ...userData
@@ -56,20 +49,16 @@ export const initializeSocket = (server) => {
 
     socket.on("player-move", (roomId, positionData) => {
       if (mapRooms[roomId] && mapRooms[roomId].players[socket.id]) {
-        // Update stored position & rotation
         mapRooms[roomId].players[socket.id].position = positionData.position;
         mapRooms[roomId].players[socket.id].rotation = positionData.rotation;
         mapRooms[roomId].players[socket.id].walking = true;
       }
-      // Broadcast to other players in the room
       socket.to(roomId).emit("player-moved", {
         id: socket.id,
         ...positionData
       });
     });
 
-    // Allow a player to push their resolved username/role after the API fetch
-    // completes, without triggering a full re-join of the room.
     socket.on("update-player", (roomId, updateData) => {
       if (mapRooms[roomId] && mapRooms[roomId].players[socket.id]) {
         if (updateData.username != null) {
@@ -81,7 +70,6 @@ export const initializeSocket = (server) => {
         if (updateData.isAlive != null) {
           mapRooms[roomId].players[socket.id].isAlive = updateData.isAlive;
         }
-        // Broadcast updated player data to everyone else in the room
         socket.to(roomId).emit("player-updated", {
           id: socket.id,
           ...mapRooms[roomId].players[socket.id],
@@ -96,13 +84,8 @@ export const initializeSocket = (server) => {
     socket.on("disconnect", () => {
       console.log("Client disconnected:", socket.id);
       if (currentRoomId && mapRooms[currentRoomId]) {
-        // Remove player from store
         delete mapRooms[currentRoomId].players[socket.id];
-        
-        // Broadcast player-left
         io.to(currentRoomId).emit("player-left", { id: socket.id });
-
-        // Clean up room if empty
         if (Object.keys(mapRooms[currentRoomId].players).length === 0) {
           delete mapRooms[currentRoomId];
         }

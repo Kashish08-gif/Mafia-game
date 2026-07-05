@@ -18,10 +18,10 @@ export default function LeaderboardPage() {
   const selfPlayer = currentUser;
 
   const getWinRate = (player) => {
-    if (!player?.matchesPlayed) return 0;
+    if (!player?.totalGamesPlayed) return 0;
 
     return Math.round(
-      (player.wins / player.matchesPlayed) * 100
+      (player.totalGamesWon / player.totalGamesPlayed) * 100
     );
   };
 
@@ -255,7 +255,9 @@ export default function LeaderboardPage() {
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.3 }}
           style={{
-            marginTop: 20,
+            position: 'sticky',
+            bottom: 24,
+            marginTop: 'auto',
             background: 'linear-gradient(90deg, #1b0005 0%, #2e000a 50%, #1b0005 100%)',
             border: '2px solid var(--blood)',
             borderRadius: 12, padding: '16px 28px', zIndex: 30,
@@ -270,8 +272,26 @@ export default function LeaderboardPage() {
               border: '2px solid #aaa9ad',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 24,
+              overflow: 'hidden',
             }}>
-              🎭
+              {selfPlayer.avatar?.startsWith("http") ? (
+                <img
+                  src={selfPlayer.avatar}
+                  alt={selfPlayer.username}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    borderRadius: "50%",
+                    objectFit: "cover",
+                  }}
+                />
+              ) : (
+                <span>
+                  {["🎭", "🧛", "🕵️", "💀", "👹", "🐺", "🤡"].includes(selfPlayer.avatar)
+                    ? selfPlayer.avatar
+                    : "🎭"}
+                </span>
+              )}
             </div>
             <div>
               <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>YOUR STANDING</span>

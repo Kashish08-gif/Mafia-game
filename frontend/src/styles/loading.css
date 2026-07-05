@@ -1,0 +1,186 @@
+.loading-screen {
+  height: 100vh;
+  overflow: hidden;
+  background: #070707;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  position: relative;
+  color: white;
+}
+
+.logo {
+  width: 170px;
+  filter: drop-shadow(0 0 20px red);
+
+  animation: pulse 2s infinite;
+
+  z-index: 2;
+}
+
+.eye {
+  font-size: 90px;
+
+  color: #ff2020;
+
+  text-shadow: 0 0 40px red;
+
+  z-index: 2;
+}
+
+.title {
+  margin-top: 20px;
+
+  text-align: center;
+
+  z-index: 2;
+}
+
+.title h1 {
+  font-size: 70px;
+
+  letter-spacing: 6px;
+
+  margin: 0;
+}
+
+.title h2 {
+  font-size: 80px;
+
+  color: #ff3030;
+
+  margin: 0;
+}
+
+.title p {
+  margin-top: 20px;
+
+  font-size: 22px;
+
+  opacity: 0.7;
+}
+
+.hud {
+  margin-top: 40px;
+
+  width: 500px;
+
+  z-index: 2;
+}
+
+.progress {
+  height: 14px;
+
+  background: #222;
+
+  border-radius: 20px;
+
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+
+  background: linear-gradient(90deg, #ff0000, #ff5555);
+
+  box-shadow: 0 0 20px red;
+
+  transition: 0.25s;
+}
+
+.percent {
+  text-align: center;
+
+  font-size: 35px;
+
+  margin: 15px;
+
+  color: #ff4444;
+}
+
+.task {
+  padding: 8px;
+
+  font-size: 18px;
+
+  opacity: 0.9;
+}
+
+.fog {
+  position: absolute;
+
+  inset: 0;
+
+  background: url("/images/fog.png");
+
+  background-size: cover;
+
+  opacity: 0.3;
+
+  animation: fogMove 20s linear infinite;
+}
+
+.rain {
+  position: absolute;
+
+  inset: 0;
+
+  background: url("/images/rain.png");
+
+  background-size: cover;
+
+  animation: rain 0.5s linear infinite;
+
+  opacity: 0.3;
+}
+
+.lightning {
+  position: absolute;
+
+  inset: 0;
+
+  background: white;
+
+  mix-blend-mode: screen;
+
+  pointer-events: none;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.05);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes fogMove {
+  0% {
+    transform: translateX(-40px);
+  }
+
+  50% {
+    transform: translateX(40px);
+  }
+
+  100% {
+    transform: translateX(-40px);
+  }
+}
+
+@keyframes rain {
+  0% {
+    background-position: 0 0;
+  }
+
+  100% {
+    background-position: -50px 300px;
+  }
+}
