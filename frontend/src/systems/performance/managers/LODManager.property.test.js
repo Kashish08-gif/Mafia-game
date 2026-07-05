@@ -85,7 +85,6 @@ describe('LODManager - Property-Based Tests', () => {
             const material = new Material();
             const meshes = [
               new Mesh(geometry, material),
-              new Mesh(geometry, material),
               new Mesh(geometry, material)
             ];
 
@@ -133,7 +132,6 @@ describe('LODManager - Property-Based Tests', () => {
             const material = new Material();
             const meshes = [
               new Mesh(geometry, material),
-              new Mesh(geometry, material),
               new Mesh(geometry, material)
             ];
 
@@ -174,7 +172,6 @@ describe('LODManager - Property-Based Tests', () => {
             const material = new Material();
             const meshes = [
               new Mesh(geometry, material),
-              new Mesh(geometry, material),
               new Mesh(geometry, material)
             ];
 
@@ -211,7 +208,6 @@ describe('LODManager - Property-Based Tests', () => {
             const geometry = new BoxGeometry(1, 1, 1);
             const material = new Material();
             const meshes = [
-              new Mesh(geometry, material),
               new Mesh(geometry, material),
               new Mesh(geometry, material)
             ];
@@ -328,24 +324,24 @@ describe('LODManager - Property-Based Tests', () => {
         fc.property(
           fc.integer({ min: 1, max: 10 }),
           (groupCount) => {
+            const localLodManager = new LODManager();
             for (let i = 0; i < groupCount; i++) {
               const geometry = new BoxGeometry(1, 1, 1);
               const material = new Material();
               const meshes = [
                 new Mesh(geometry, material),
-                new Mesh(geometry, material),
                 new Mesh(geometry, material)
               ];
 
-              lodManager.registerLODGroup(
+              localLodManager.registerLODGroup(
                 meshes,
                 [LOD_CONFIG.HIGH_DETAIL_DISTANCE, LOD_CONFIG.MEDIUM_DETAIL_DISTANCE]
               );
             }
 
-            const stats1 = lodManager.getLODStats();
-            const stats2 = lodManager.getLODStats();
-            const stats3 = lodManager.getLODStats();
+            const stats1 = localLodManager.getLODStats();
+            const stats2 = localLodManager.getLODStats();
+            const stats3 = localLodManager.getLODStats();
 
             expect(stats1.totalGroups).toBe(stats2.totalGroups);
             expect(stats2.totalGroups).toBe(stats3.totalGroups);
@@ -357,6 +353,8 @@ describe('LODManager - Property-Based Tests', () => {
 
             expect(typeof stats1.activeTransitions).toBe('number');
             expect(stats1.activeTransitions).toBeGreaterThanOrEqual(0);
+
+            localLodManager.dispose();
           }
         ),
         { numRuns: 20 }

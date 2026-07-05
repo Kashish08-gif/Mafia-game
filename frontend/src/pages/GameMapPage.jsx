@@ -87,6 +87,10 @@ const NAME_COLORS = [
   "#26a69a",
   "#ffee58",
 ]
+
+// Stable no-op so GameCanvasOptimized.memo never sees a new function reference
+const NOOP = () => {};
+
 // ── Main Page ────────────────────────────────────────────────
 export default function GameMapPage() {
   const { roomId = "demo" } = useParams();
@@ -365,7 +369,7 @@ export default function GameMapPage() {
         fontFamily: "Inter, system-ui, sans-serif",
       }}
     >
-      {/* 3D Canvas with Performance Optimization */}
+      {/* 3D Canvas — wrapped in React.memo; only re-renders on actual prop value changes */}
       <GameCanvasOptimized
         myPos={myPos}
         setMyPos={setMyPos}
@@ -377,7 +381,7 @@ export default function GameMapPage() {
         isAlive={isAlive}
         players={players}
         phase={phase}
-        onMovingChange={() => {}} // Callback not used
+        onMovingChange={NOOP}
         buildings={BUILDINGS}
       />
 

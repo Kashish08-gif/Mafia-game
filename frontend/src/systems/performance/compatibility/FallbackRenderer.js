@@ -114,21 +114,17 @@ class PerformancePreset {
    * Apply preset to renderer
    */
   applyToRenderer(renderer) {
-    renderer.setPixelRatio(window.devicePixelRatio);
-    
-    if (this.tier === 'low') {
-      renderer.shadowMap.enabled = false;
-      renderer.shadowMap.type = THREE.BasicShadowMap;
-    } else if (this.tier === 'medium') {
-      renderer.shadowMap.enabled = true;
-      renderer.shadowMap.type = THREE.PCFShadowMap;
-    } else {
-      renderer.shadowMap.enabled = true;
-      // Use PCFShadowMap instead of deprecated PCFShadowMapSoftShadows
-      renderer.shadowMap.type = THREE.PCFShadowMap;
-    }
-    
-    // In three.js r185+, sRGBEncoding is deprecated; use colorSpace instead
+    // NOTE: Do NOT call renderer.setPixelRatio() here.
+    // React Three Fiber manages the DPR via the Canvas `dpr` prop.
+    // Calling setPixelRatio() post-init forces a canvas resize which triggers
+    // a WebGL context loss/restore cycle causing screen blinking.
+    //
+    // NOTE: Do NOT mutate renderer.shadowMap.type or renderer.shadowMap.enabled here.
+    // R3F sets these during Canvas initialization via the `shadows` prop.
+    // Mutating them after the fact forces Three.js to invalidate its shader cache
+    // and reset the entire WebGL state, causing the Context Lost / Restored loop.
+    //
+    // Safe: only set color-space and tone mapping since these don't trigger context loss.
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
   }
@@ -238,15 +234,10 @@ class FallbackRenderer {
    * Apply material overrides to scene
    */
   applyMaterialOverrides(scene) {
-    scene.traverse((obj) => {
-      if (obj.isMesh && obj.material) {
-        const override = this.strategy.getMaterialOverride(obj.material);
-        if (override !== obj.material) {
-          obj.material = override;
-          this.materialOverrides.set(obj.uuid, override);
-        }
-      }
-    });
+    // Skip material overrides: replacing materials on GLB meshes mid-render
+    // causes shader recompilation per-frame which exhausts the GPU and triggers
+    // WebGL context loss. R3F's built-in Suspense handles missing materials gracefully.
+    // This is a no-op intentionally to prevent context cycling.
   }
   
   /**
