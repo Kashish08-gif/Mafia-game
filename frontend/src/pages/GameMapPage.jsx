@@ -137,6 +137,8 @@ export default function GameMapPage() {
   const [showVote, setShowVote] = useState(false);
   const [muted, setMuted] = useState(false);
   const lastEmitRef = useRef(0);
+  const [pointerLocked, setPointerLocked] = useState(false);
+  const [isSitting, setIsSitting] = useState(false);
 
   // Total players in the DB room, default to 5
   const [dbTotalPlayers, setDbTotalPlayers] = useState(5);
@@ -258,6 +260,7 @@ const onSnapshot = (snap) => {
                 position: p.position,
                 rotation: p.rotation,
                 walking: true,
+                sitting: p.sitting,
               }
             : x,
         ),
@@ -331,10 +334,20 @@ const onSnapshot = (snap) => {
     sock.emit("player-move", roomId, {
       position: { x: myPos[0], y: myPos[1], z: myPos[2] },
       rotation: myRot,
+      sitting: isSitting,
     });
-  }, [myPos, myRot, roomId]);
+  }, [myPos, myRot, roomId, isSitting]);
 
 
+
+  // Track pointer-lock state so HUD can show/hide the look-hint overlay
+  useEffect(() => {
+    const onLockChange = () => {
+      setPointerLocked(!!document.pointerLockElement);
+    };
+    document.addEventListener('pointerlockchange', onLockChange);
+    return () => document.removeEventListener('pointerlockchange', onLockChange);
+  }, []);
 
   const castVote = (targetId) => {
     const sock = getSocket();
@@ -387,7 +400,114 @@ const onSnapshot = (snap) => {
         phase={phase}
         onMovingChange={NOOP}
         buildings={BUILDINGS}
+        isSitting={isSitting}
+        setIsSitting={setIsSitting}
       />
+
+      {/* ── Position debug overlay (bottom-left) ── */}
+      <div
+        style={{
+          position: 'absolute',
+          bottom: 130,
+          left: 16,
+          background: 'rgba(0,0,0,0.72)',
+          backdropFilter: 'blur(6px)',
+          border: '1px solid rgba(255,255,255,0.15)',
+          borderRadius: 8,
+          padding: '4px 10px',
+          color: 'rgba(255,255,255,0.7)',
+          fontSize: 10,
+          fontWeight: 700,
+          fontFamily: 'monospace',
+          letterSpacing: '0.04em',
+          pointerEvents: 'none',
+          zIndex: 20,
+        }}
+      >
+        X:{myPos[0].toFixed(1)} Z:{myPos[2].toFixed(1)}
+        {isSitting && <span style={{ marginLeft: 8, color: '#ffd700' }}>💺 SITTING</span>}
+      </div>
+
+      {/* ── Crosshair (always visible) ── */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: 10,
+          height: 10,
+          borderRadius: '50%',
+          background: 'rgba(255,255,255,0.85)',
+          boxShadow: '0 0 6px rgba(0,0,0,0.8), 0 0 0 1.5px rgba(0,0,0,0.6)',
+          pointerEvents: 'none',
+          zIndex: 20,
+        }}
+      />
+
+      {/* ── Click-to-look hint (shown when pointer is NOT locked) ── */}
+      {!pointerLocked && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 110,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'rgba(0,0,0,0.72)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255,255,255,0.18)',
+            borderRadius: 30,
+            padding: '8px 20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            color: '#fff',
+            fontSize: 13,
+            fontWeight: 600,
+            letterSpacing: '0.04em',
+            pointerEvents: 'none',
+            zIndex: 20,
+            animation: 'mouseLookPulse 2.2s ease-in-out infinite',
+          }}
+        >
+          <span style={{ fontSize: 18 }}>🖱️</span>
+          Click game to look around freely
+          <span style={{ opacity: 0.5, fontSize: 11 }}>· ESC to release</span>
+        </div>
+      )}
+
+      {/* ── ESC hint pill (shown when pointer IS locked) ── */}
+      {pointerLocked && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 16,
+            left: '50%',
+            transform: 'translateX(-50%) translateY(56px)',
+            background: 'rgba(0,0,0,0.55)',
+            backdropFilter: 'blur(8px)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: 20,
+            padding: '4px 14px',
+            color: 'rgba(255,255,255,0.55)',
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: '0.05em',
+            pointerEvents: 'none',
+            zIndex: 20,
+          }}
+        >
+          [ESC] Show Cursor | [E] Sit / Stand
+        </div>
+      )}
+
+      {/* ── Keyframe animation injected once ── */}
+      <style>{`
+        @keyframes mouseLookPulse {
+          0%, 100% { opacity: 0.85; transform: translateX(-50%) scale(1); }
+          50%       { opacity: 1;    transform: translateX(-50%) scale(1.03); }
+        }
+      `}</style>
 
       {/* TOP-LEFT: Room banner */}
       <div
@@ -757,6 +877,9 @@ const onSnapshot = (snap) => {
             label: "Interact",
             testid: "btn-interact",
             big: true,
+            onClick: () => {
+              window.dispatchEvent(new CustomEvent('game-interact'));
+            }
           },
           { icon: <Smile size={18} />, label: "EMOTE", testid: "btn-emote" },
           {
@@ -768,6 +891,7 @@ const onSnapshot = (snap) => {
           <button
             key={a.label}
             data-testid={a.testid}
+            onClick={a.onClick}
             style={{
               width: a.big ? 76 : 58,
               height: a.big ? 76 : 58,

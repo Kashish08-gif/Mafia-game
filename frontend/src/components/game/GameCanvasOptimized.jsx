@@ -16,7 +16,8 @@ import { Canvas } from '@react-three/fiber';
 import GameScene from './GameScene';
 
 // ── Stable module-level constants — never recreated between renders ──────────
-const CAMERA_CONFIG  = { position: [0, 6, 10], fov: 55 };
+// fov: 45 — tight field of view so player only sees immediate surroundings (was 55)
+const CAMERA_CONFIG  = { position: [0, 6, 10], fov: 45 };
 const CANVAS_STYLE   = { position: 'absolute', inset: 0 };
 const GL_CONFIG      = {
   antialias: true,
@@ -45,6 +46,8 @@ const GameCanvasOptimized = memo(function GameCanvasOptimized({
   phase,
   onMovingChange,
   buildings,
+  isSitting,
+  setIsSitting,
 }) {
   const canvasRef = useRef(null);
 
@@ -70,6 +73,8 @@ const GameCanvasOptimized = memo(function GameCanvasOptimized({
         phase={phase}
         onMovingChange={onMovingChange}
         buildings={buildings}
+        isSitting={isSitting}
+        setIsSitting={setIsSitting}
       />
     </Canvas>
   );

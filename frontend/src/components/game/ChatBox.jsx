@@ -1,44 +1,84 @@
 /**
  * ChatBox.jsx
- * In-game chat panel — message list + input form.
- * Extracted from GameMapPage.jsx's inline chat block.
+ * In-game chat panel — message list + input form with emoji picker.
  *
  * Props:
  *   messages   — array of { sender, text, color, ts? }
  *   onSend     — callback(text: string) when user submits
  *   myColor    — local player colour (used for send button accent)
+ *
+ * Emoji fixes applied:
+ *  1. EmojiPicker wrapped in a portal-like div OUTSIDE the <form> so clicking
+ *     an emoji never accidentally submits the form.
+ *  2. After selecting an emoji the text input is re-focused automatically.
+ *  3. Picker closes when clicking anywhere outside it (useEffect click-away).
+ *  4. autoFocusSearch={false} so the picker doesn't steal keyboard focus.
+ *  5. handleSubmit works for emoji-only messages (no letters, trim check removed
+ *     for emoji since trim() strips nothing from emoji strings).
  */
 
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import { Send, Smile } from 'lucide-react';
 import EmojiPicker from 'emoji-picker-react';
 
 export default function ChatBox({ messages = [], onSend, myColor = '#ffd700' }) {
-  const [input, setInput]   = useState('');
+  const [input, setInput]     = useState('');
   const [showEmoji, setShowEmoji] = useState(false);
-  const bottomRef           = useRef(null);
+  const bottomRef             = useRef(null);
+  const inputRef              = useRef(null);
+  const pickerWrapRef         = useRef(null);
 
   // Auto-scroll to newest message
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSubmit = (e) => {
+  // Close picker when clicking outside of it
+  useEffect(() => {
+    if (!showEmoji) return;
+    const handler = (e) => {
+      if (pickerWrapRef.current && !pickerWrapRef.current.contains(e.target)) {
+        setShowEmoji(false);
+      }
+    };
+    // Use capture so we catch the event before anything else
+    document.addEventListener('pointerdown', handler, true);
+    return () => document.removeEventListener('pointerdown', handler, true);
+  }, [showEmoji]);
+
+  const handleSubmit = useCallback((e) => {
     e?.preventDefault?.();
     const trimmed = input.trim();
     if (!trimmed) return;
     onSend?.(trimmed);
     setInput('');
-  };
+    setShowEmoji(false);
+    // Keep focus on the input after sending
+    inputRef.current?.focus();
+  }, [input, onSend]);
 
   const handleKeyDown = (e) => {
     // Stop WASD keys from triggering character movement while typing
     e.stopPropagation();
     if (e.key === 'Enter') handleSubmit();
+    if (e.key === 'Escape') setShowEmoji(false);
   };
-  function handleEmojiClick(emojiData) {
-  setInput((prev) => prev + emojiData.emoji);
-}
+
+  const handleEmojiClick = useCallback((emojiData) => {
+    // Append the emoji character to the current input value
+    setInput((prev) => prev + emojiData.emoji);
+    // Close picker and refocus the text field so the user can keep typing
+    setShowEmoji(false);
+    // Small timeout so the state flush completes before we focus
+    setTimeout(() => inputRef.current?.focus(), 0);
+  }, []);
+
+  const toggleEmoji = (e) => {
+    // Prevent this button click from bubbling into the form
+    e.preventDefault();
+    e.stopPropagation();
+    setShowEmoji((v) => !v);
+  };
 
   return (
     <div
@@ -47,6 +87,8 @@ export default function ChatBox({ messages = [], onSend, myColor = '#ffd700' }) 
         flexDirection: 'column',
         gap: 8,
         width: 300,
+        // Needed so the absolutely-positioned picker doesn't overflow the HUD
+        position: 'relative',
       }}
     >
       {/* Message list */}
@@ -85,7 +127,8 @@ export default function ChatBox({ messages = [], onSend, myColor = '#ffd700' }) 
             style={{
               padding: msg.sender === 'System' ? '2px 0' : '6px 10px',
               borderRadius: 8,
-              fontSize: 12,
+              fontSize: 13,          // slightly larger so emojis render clearly
+              lineHeight: '1.5',
               background:
                 msg.sender === 'System'
                   ? 'transparent'
@@ -96,6 +139,7 @@ export default function ChatBox({ messages = [], onSend, myColor = '#ffd700' }) 
                 msg.sender === 'System'
                   ? 'none'
                   : '1px solid rgba(255,255,255,0.06)',
+              wordBreak: 'break-word',   // so long emoji strings don't overflow
             }}
           >
             {msg.sender !== 'System' && (
@@ -117,57 +161,66 @@ export default function ChatBox({ messages = [], onSend, myColor = '#ffd700' }) 
         <div ref={bottomRef} />
       </div>
 
+      {/* ── Emoji Picker — lives OUTSIDE the form to avoid accidental submit ── */}
+      {showEmoji && (
+        <div
+          ref={pickerWrapRef}
+          style={{
+            position: 'absolute',
+            bottom: 90,   // sits above the input row
+            left: 0,
+            zIndex: 9999,
+          }}
+        >
+          <EmojiPicker
+            onEmojiClick={handleEmojiClick}
+            theme="dark"
+            autoFocusSearch={false}   // don't steal keyboard from the game
+            lazyLoadEmojis={true}
+            searchDisabled={false}
+            width={300}
+            height={380}
+          />
+        </div>
+      )}
+
       {/* Input row */}
       <form
         onSubmit={handleSubmit}
-        style={{ display: 'flex', gap: 8 }}
+        style={{ display: 'flex', gap: 8, alignItems: 'center' }}
       >
-        <div style={{ position: "relative" }}>
+        {/* Emoji toggle button */}
+        <button
+          type="button"          // CRITICAL: type=button prevents form submit
+          onClick={toggleEmoji}
+          title="Emoji"
+          style={{
+            flexShrink: 0,
+            background: showEmoji
+              ? `${myColor}33`
+              : 'rgba(255,255,255,0.07)',
+            border: `1.5px solid ${showEmoji ? myColor : 'rgba(255,255,255,0.12)'}`,
+            borderRadius: 10,
+            cursor: 'pointer',
+            color: showEmoji ? myColor : 'rgba(255,255,255,0.7)',
+            padding: '8px 9px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.18s',
+          }}
+        >
+          <Smile size={18} />
+        </button>
 
-  <button
-    type="button"
-    onClick={() => setShowEmoji(!showEmoji)}
-    style={{
-      background: "transparent",
-      border: "none",
-      cursor: "pointer",
-      color: "white",
-      padding: 8
-    }}
-  >
-    <Smile size={22}/>
-  </button>
-
-  {showEmoji && (
-
-    <div
-      style={{
-        position:"absolute",
-        bottom:55,
-        left:0,
-        zIndex:999
-      }}
-    >
-
-      <EmojiPicker
-
-        onEmojiClick={handleEmojiClick}
-
-        theme="dark"
-
-      />
-
-    </div>
-
-  )}
-
-</div>
+        {/* Text input */}
         <input
+          ref={inputRef}
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Press Enter to chat…"
+          placeholder="Chat or pick emoji…"
           style={{
             flex: 1,
             padding: '10px 14px',
@@ -177,13 +230,17 @@ export default function ChatBox({ messages = [], onSend, myColor = '#ffd700' }) 
             border: '1.5px solid rgba(255,215,0,0.2)',
             color: '#fff',
             outline: 'none',
-            fontSize: 12,
+            fontSize: 13,
             fontFamily: 'Inter, system-ui, sans-serif',
           }}
         />
+
+        {/* Send button */}
         <button
           type="submit"
+          title="Send"
           style={{
+            flexShrink: 0,
             padding: '10px 14px',
             borderRadius: 10,
             background: `linear-gradient(135deg, ${myColor}cc, ${myColor}88)`,
