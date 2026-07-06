@@ -21,6 +21,7 @@ const SPRINT_SPEED = 9;
 const BOUNDS       = 50; // half-size of playable area
 const CAM_DIST     = 9;
 const CAM_HEIGHT   = 5.5;
+const PLAYER_RADIUS = 0.45;
 
 export default function Player({
   position,
@@ -71,8 +72,30 @@ export default function Player({
       window.removeEventListener('contextmenu',  onContextMenu);
     };
   }, []);
+  useEffect(() => {
+  yaw.current = rotation;
+}, [rotation]);
 
   // ── Per-frame movement + camera follow ──────────────────────
+  function isBlocked(x, z) {
+  const blocked = buildings.some((b) => {
+    if (b.id === "garden" || b.id === "helipad") return false;
+
+    const [bx, bz] = b.pos;
+    const [bw, , bd] = b.size;
+
+    return (
+  Math.abs(x - bx) < bw / 2 + PLAYER_RADIUS &&
+  Math.abs(z - bz) < bd / 2 + PLAYER_RADIUS
+);
+  });
+
+  const outOfBounds =
+    Math.abs(x) > BOUNDS ||
+    Math.abs(z) > BOUNDS;
+
+  return blocked || outOfBounds;
+}
   useFrame((_, delta) => {
     const k      = keys.current;
     const sprint = k['ShiftLeft'] || k['ShiftRight'];
@@ -96,26 +119,26 @@ export default function Player({
       const wx  = dx * cos - dz * sin;
       const wz  = dx * sin + dz * cos;
 
-      const nx = position[0] + wx * speed;
-      const nz = position[2] + wz * speed;
+      let newX = position[0];
+let newZ = position[2];
 
-      // Collision: buildings + boundary
-      const blocked = buildings.some((b) => {
-        if (b.id === 'garden' || b.id === 'helipad') return false;
-        const [bx, bz] = b.pos;
-        const [bw, , bd] = b.size;
-        return (
-          Math.abs(nx - bx) < bw / 2 + 0.5 &&
-          Math.abs(nz - bz) < bd / 2 + 0.5
-        );
-      });
+// Try moving on X
+const tryX = newX + wx * speed;
 
-      const outOfBounds = Math.abs(nx) > BOUNDS || Math.abs(nz) > BOUNDS;
+if (!isBlocked(tryX, newZ)) {
+    newX = tryX;
+}
 
-      if (!blocked && !outOfBounds) {
-        setPosition([nx, 0, nz]);
-        setRotation(Math.atan2(wx, wz));
-      }
+// Try moving on Z
+const tryZ = newZ + wz * speed;
+
+if (!isBlocked(newX, tryZ)) {
+    newZ = tryZ;
+}
+
+setPosition([newX, 0, newZ]);
+setRotation(Math.atan2(wx, wz));
+
     }
 
     onMoving(moving);
