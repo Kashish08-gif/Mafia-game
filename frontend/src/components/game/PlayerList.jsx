@@ -20,13 +20,15 @@ export default function PlayerList({
   myColor,
   isAlive,
   players = [],
-  aliveCount,
-  totalPlayers,
+  
 }) {
   const all = [
-    { id: myId, username: myName, color: myColor, isAlive },
-    ...players,
-  ];
+  { id: myId, username: myName, color: myColor, isAlive },
+  ...players.filter(p => p.id !== myId),
+];
+
+const aliveCount = all.filter(p => p.isAlive !== false).length;
+const totalPlayers = all.length;
 
   return (
     <div

@@ -225,13 +225,17 @@ export default function GameMapPage() {
       role: myRole,
       position: { x: myPos[0], y: 0, z: myPos[2] },
     });
+const onSnapshot = (snap) => {
+  console.log("========== SNAPSHOT ==========");
+  console.log(snap);
+  console.log("Players received:", snap.players);
 
-    const onSnapshot = (snap) => {
-      setPlayers((snap.players || []).filter((p) => p.id !== sock.id));
-      setPhase(snap.phase || "DAY");
-      setTimer(snap.timer || 0);
-      setDay(snap.day || 1);
-    };
+  setPlayers((snap.players || []).filter((p) => p.id !== sock.id));
+
+  setPhase(snap.phase || "DAY");
+  setTimer(snap.timer || 0);
+  setDay(snap.day || 1);
+};
     const onJoin = (p) => {
       setPlayers((prev) =>
         prev.find((x) => x.id === p.id) ? prev : [...prev, p],
@@ -436,8 +440,7 @@ export default function GameMapPage() {
         myColor={myColor}
         isAlive={isAlive}
         players={players}
-        aliveCount={aliveCount}
-        totalPlayers={totalPlayers}
+        
       />
 
       {/* LEFT-MIDDLE: Role panel */}
