@@ -10,10 +10,12 @@
  */
 
 import { useRef, useEffect, useState } from 'react';
-import { Send } from 'lucide-react';
+import { Send, Smile } from 'lucide-react';
+import EmojiPicker from 'emoji-picker-react';
 
 export default function ChatBox({ messages = [], onSend, myColor = '#ffd700' }) {
   const [input, setInput]   = useState('');
+  const [showEmoji, setShowEmoji] = useState(false);
   const bottomRef           = useRef(null);
 
   // Auto-scroll to newest message
@@ -34,6 +36,9 @@ export default function ChatBox({ messages = [], onSend, myColor = '#ffd700' }) 
     e.stopPropagation();
     if (e.key === 'Enter') handleSubmit();
   };
+  function handleEmojiClick(emojiData) {
+  setInput((prev) => prev + emojiData.emoji);
+}
 
   return (
     <div
@@ -117,6 +122,46 @@ export default function ChatBox({ messages = [], onSend, myColor = '#ffd700' }) 
         onSubmit={handleSubmit}
         style={{ display: 'flex', gap: 8 }}
       >
+        <div style={{ position: "relative" }}>
+
+  <button
+    type="button"
+    onClick={() => setShowEmoji(!showEmoji)}
+    style={{
+      background: "transparent",
+      border: "none",
+      cursor: "pointer",
+      color: "white",
+      padding: 8
+    }}
+  >
+    <Smile size={22}/>
+  </button>
+
+  {showEmoji && (
+
+    <div
+      style={{
+        position:"absolute",
+        bottom:55,
+        left:0,
+        zIndex:999
+      }}
+    >
+
+      <EmojiPicker
+
+        onEmojiClick={handleEmojiClick}
+
+        theme="dark"
+
+      />
+
+    </div>
+
+  )}
+
+</div>
         <input
           type="text"
           value={input}

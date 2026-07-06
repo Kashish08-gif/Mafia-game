@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getUserData } from '../services/userService.js';
+import Chat from "../components/chat/Chat";
 
 const RANK_CONFIG = [
   { name: 'Bronze',  min:    0, max:  499, color: '#cd7f32', icon: '🥉' },
