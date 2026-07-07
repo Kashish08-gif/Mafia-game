@@ -24,12 +24,17 @@ export default function ChatBox({ messages = [], onSend, myColor = '#ffd700' }) 
   }, [messages]);
 
   const handleSubmit = (e) => {
-    e?.preventDefault?.();
-    const trimmed = input.trim();
-    if (!trimmed) return;
-    onSend?.(trimmed);
-    setInput('');
-  };
+  e?.preventDefault?.();
+
+  const trimmed = input.trim();
+  if (!trimmed) return;
+
+  console.log("Sending:", trimmed);
+
+  onSend?.(trimmed);
+
+  setInput('');
+};
 
   const handleKeyDown = (e) => {
     // Stop WASD keys from triggering character movement while typing
@@ -139,27 +144,20 @@ export default function ChatBox({ messages = [], onSend, myColor = '#ffd700' }) 
   </button>
 
   {showEmoji && (
-
-    <div
-      style={{
-        position:"absolute",
-        bottom:55,
-        left:0,
-        zIndex:999
-      }}
-    >
-
-      <EmojiPicker
-
-        onEmojiClick={handleEmojiClick}
-
-        theme="dark"
-
-      />
-
-    </div>
-
-  )}
+  <div
+    style={{
+      position: "fixed",
+      bottom: "120px",
+      left: "20px",
+      zIndex: 999999,
+    }}
+  >
+    <EmojiPicker
+      onEmojiClick={handleEmojiClick}
+      theme="dark"
+    />
+  </div>
+)}
 
 </div>
         <input
