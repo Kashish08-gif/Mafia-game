@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, useParams } from "react-router-dom";
 import "../styles/loading.css";
-
 const BACKEND_BASE = "http://localhost:5000/api";
 
 export default function LoadingScreen() {
@@ -68,23 +67,23 @@ export default function LoadingScreen() {
     };
   }, [navigate, roomId]);
 
-  return (
-    <div className="loading-screen">
+return (
+  <div className="loading-screen">
 
-      <div className="fog"></div>
+    <div className="fog"></div>
 
-      <div className="rain"></div>
+    <div className="rain"></div>
 
-      <div className="particles"></div>
+    <div className="particles"></div>
 
-      <motion.div
-        className="lightning"
-        animate={{ opacity: [0, 0.9, 0] }}
-        transition={{
-          duration: 0.2,
-          repeat: Infinity,
-          repeatDelay: 2.5
-        }}
+    <motion.div
+      className="lightning"
+      animate={{ opacity: [0, 0.9, 0] }}
+      transition={{
+        duration: 0.2,
+        repeat: Infinity,
+        repeatDelay: 2.5
+      }}
       />
 
       <AnimatePresence>
