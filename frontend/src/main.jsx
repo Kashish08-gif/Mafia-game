@@ -1,4 +1,5 @@
-import { StrictMode } from "react";
+// StrictMode removed — it double-invokes effects in dev, causing socket join-map
+// to fire twice which creates duplicate player entries in the game room.
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import './styles/chat.css';
@@ -21,7 +22,5 @@ useGLTF.preload("/models/casino/gameready_casino_scene.glb");
 
 
 createRoot(document.getElementById("root")).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
+  <App />
 );

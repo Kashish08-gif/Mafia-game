@@ -137,6 +137,8 @@ export default function GameMapPage() {
   const [showVote, setShowVote] = useState(false);
   const [muted, setMuted] = useState(false);
   const lastEmitRef = useRef(0);
+  const [pointerLocked, setPointerLocked] = useState(false);
+  const [isSitting, setIsSitting] = useState(false);
 
   // Total players in the DB room, default to 5
   const [dbTotalPlayers, setDbTotalPlayers] = useState(5);
@@ -258,6 +260,7 @@ const onSnapshot = (snap) => {
                 position: p.position,
                 rotation: p.rotation,
                 walking: true,
+                sitting: p.sitting,
               }
             : x,
         ),
@@ -331,10 +334,20 @@ const onSnapshot = (snap) => {
     sock.emit("player-move", roomId, {
       position: { x: myPos[0], y: myPos[1], z: myPos[2] },
       rotation: myRot,
+      sitting: isSitting,
     });
-  }, [myPos, myRot, roomId]);
+  }, [myPos, myRot, roomId, isSitting]);
 
 
+
+  // Track pointer-lock state so HUD can show/hide the look-hint overlay
+  useEffect(() => {
+    const onLockChange = () => {
+      setPointerLocked(!!document.pointerLockElement);
+    };
+    document.addEventListener('pointerlockchange', onLockChange);
+    return () => document.removeEventListener('pointerlockchange', onLockChange);
+  }, []);
 
   const castVote = (targetId) => {
     const sock = getSocket();
@@ -387,7 +400,114 @@ const onSnapshot = (snap) => {
         phase={phase}
         onMovingChange={NOOP}
         buildings={BUILDINGS}
+        isSitting={isSitting}
+        setIsSitting={setIsSitting}
       />
+
+      {/* ── Position debug overlay (bottom-left) ── */}
+      <div
+        style={{
+          position: 'absolute',
+          bottom: 130,
+          left: 16,
+          background: 'rgba(0,0,0,0.72)',
+          backdropFilter: 'blur(6px)',
+          border: '1px solid rgba(255,255,255,0.15)',
+          borderRadius: 8,
+          padding: '4px 10px',
+          color: 'rgba(255,255,255,0.7)',
+          fontSize: 10,
+          fontWeight: 700,
+          fontFamily: 'monospace',
+          letterSpacing: '0.04em',
+          pointerEvents: 'none',
+          zIndex: 20,
+        }}
+      >
+        X:{myPos[0].toFixed(1)} Z:{myPos[2].toFixed(1)}
+        {isSitting && <span style={{ marginLeft: 8, color: '#ffd700' }}>💺 SITTING</span>}
+      </div>
+
+      {/* ── Crosshair (always visible) ── */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: 10,
+          height: 10,
+          borderRadius: '50%',
+          background: 'rgba(255,255,255,0.85)',
+          boxShadow: '0 0 6px rgba(0,0,0,0.8), 0 0 0 1.5px rgba(0,0,0,0.6)',
+          pointerEvents: 'none',
+          zIndex: 20,
+        }}
+      />
+
+      {/* ── Click-to-look hint (shown when pointer is NOT locked) ── */}
+      {!pointerLocked && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 110,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'rgba(0,0,0,0.72)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255,255,255,0.18)',
+            borderRadius: 30,
+            padding: '8px 20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            color: '#fff',
+            fontSize: 13,
+            fontWeight: 600,
+            letterSpacing: '0.04em',
+            pointerEvents: 'none',
+            zIndex: 20,
+            animation: 'mouseLookPulse 2.2s ease-in-out infinite',
+          }}
+        >
+          <span style={{ fontSize: 18 }}>🖱️</span>
+          Click game to look around freely
+          <span style={{ opacity: 0.5, fontSize: 11 }}>· ESC to release</span>
+        </div>
+      )}
+
+      {/* ── ESC hint pill (shown when pointer IS locked) ── */}
+      {pointerLocked && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 16,
+            left: '50%',
+            transform: 'translateX(-50%) translateY(56px)',
+            background: 'rgba(0,0,0,0.55)',
+            backdropFilter: 'blur(8px)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: 20,
+            padding: '4px 14px',
+            color: 'rgba(255,255,255,0.55)',
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: '0.05em',
+            pointerEvents: 'none',
+            zIndex: 20,
+          }}
+        >
+          [ESC] Show Cursor | [E] Sit / Stand
+        </div>
+      )}
+
+      {/* ── Keyframe animation injected once ── */}
+      <style>{`
+        @keyframes mouseLookPulse {
+          0%, 100% { opacity: 0.85; transform: translateX(-50%) scale(1); }
+          50%       { opacity: 1;    transform: translateX(-50%) scale(1.03); }
+        }
+      `}</style>
 
       {/* TOP-LEFT: Room banner */}
       <div
@@ -443,110 +563,89 @@ const onSnapshot = (snap) => {
         
       />
 
-      {/* LEFT-MIDDLE: Role panel */}
+      {/* LEFT-BOTTOM: Role badge + Chat stacked together */}
       <div
-        data-testid="hud-role-panel"
-        style={{
-          position: "absolute",
-          bottom: 280,
-          left: 16,
-          width: 270,
-          background: "linear-gradient(135deg, rgba(15,8,25,0.9) 0%, rgba(5,2,10,0.96) 100%)",
-          backdropFilter: "blur(12px)",
-          border: `1.5px solid ${meta.color}`,
-          boxShadow: `0 0 16px ${meta.color}33, inset 0 0 12px rgba(255, 215, 0, 0.1)`,
-          borderRadius: 16,
-          padding: 16,
-          zIndex: 10,
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            marginBottom: 12,
-          }}
-        >
-          <div style={{
-            color: meta.color,
-            background: `${meta.color}18`,
-            padding: 8,
-            borderRadius: 10,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: `0 0 8px ${meta.color}22`
-          }}>{meta.icon}</div>
-          <div>
-            <div
-              style={{ fontSize: 9, color: "#aaa", letterSpacing: "0.15em", fontWeight: 800 }}
-            >
-              YOUR ASSIGNED FATE
-            </div>
-            <div
-              style={{
-                fontSize: 22,
-                fontWeight: 900,
-                color: meta.color,
-                letterSpacing: "0.08em",
-                textShadow: `0 0 8px ${meta.color}55`,
-              }}
-            >
-              {meta.label}
-            </div>
-          </div>
-        </div>
-        <div style={{ fontSize: 10, color: "#ffd700", fontWeight: 800, letterSpacing: '0.05em', marginBottom: 8 }}>
-          SPECIAL ABILITIES
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {meta.abilities.map((a, i) => (
-            <div
-              key={i}
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: 'center',
-                padding: "6px 10px",
-                fontSize: 12,
-                background: 'rgba(255,255,255,0.02)',
-                border: '1px solid rgba(255,255,255,0.03)',
-                borderRadius: 8,
-              }}
-            >
-              <span style={{ color: '#eee', fontWeight: 600 }}>✦ {a.name}</span>
-              <span style={{ color: meta.color, fontWeight: 900, fontSize: 11, background: `${meta.color}15`, padding: '1px 6px', borderRadius: 4 }}>
-                {a.count}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* LEFT-BOTTOM: Chat */}
-      <div
-        data-testid="hud-chat"
         style={{
           position: "absolute",
           bottom: 16,
           left: 16,
           zIndex: 10,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 8,
+          width: 300,
         }}
       >
-        <ChatBox
-          messages={chat}
-          onSend={(text) => {
-            const sock = getSocket();
-            sock.emit("send-chat", roomId, {
-              sender: myName,
-              text,
-              color: myColor,
-              ts: Date.now(),
-            });
+        {/* Compact role badge above the chat */}
+        <div
+          data-testid="hud-role-panel"
+          style={{
+            background: "linear-gradient(135deg, rgba(15,8,25,0.92) 0%, rgba(5,2,10,0.97) 100%)",
+            backdropFilter: "blur(12px)",
+            border: `1.5px solid ${meta.color}`,
+            boxShadow: `0 0 14px ${meta.color}33`,
+            borderRadius: 14,
+            padding: '10px 14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
           }}
-          myColor={myColor}
-        />
+        >
+          <div style={{
+            color: meta.color,
+            background: `${meta.color}20`,
+            padding: '6px 7px',
+            borderRadius: 8,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: `0 0 6px ${meta.color}33`,
+            flexShrink: 0,
+          }}>{meta.icon}</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 9, color: '#aaa', letterSpacing: '0.15em', fontWeight: 800 }}>YOUR ROLE</div>
+            <div style={{ fontSize: 15, fontWeight: 900, color: meta.color, letterSpacing: '0.06em', textShadow: `0 0 6px ${meta.color}55` }}>
+              {meta.label}
+            </div>
+          </div>
+          {/* Abilities inline pills */}
+          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            {meta.abilities.map((a, i) => (
+              <span key={i} style={{
+                fontSize: 10,
+                fontWeight: 800,
+                color: meta.color,
+                background: `${meta.color}18`,
+                border: `1px solid ${meta.color}44`,
+                borderRadius: 6,
+                padding: '2px 7px',
+                whiteSpace: 'nowrap',
+              }}>✦ {a.name}</span>
+            ))}
+          </div>
+        </div>
+
+        {/* Chat box */}
+        <div data-testid="hud-chat">
+          <ChatBox
+            messages={chat}
+            onSend={(text) => {
+              // Optimistic: add own message immediately so it shows without waiting for echo
+              setChat((c) => [
+                ...c,
+                { sender: myName, text, color: myColor, ts: Date.now() },
+              ]);
+              const sock = getSocket();
+              sock.emit("send-chat", roomId, {
+                sender: myName,
+                text,
+                color: myColor,
+                ts: Date.now(),
+              });
+            }}
+            myColor={myColor}
+          />
+        </div>
       </div>
 
       {/* TOP CENTER: Day/Night clock */}
@@ -757,6 +856,9 @@ const onSnapshot = (snap) => {
             label: "Interact",
             testid: "btn-interact",
             big: true,
+            onClick: () => {
+              window.dispatchEvent(new CustomEvent('game-interact'));
+            }
           },
           { icon: <Smile size={18} />, label: "EMOTE", testid: "btn-emote" },
           {
@@ -768,6 +870,7 @@ const onSnapshot = (snap) => {
           <button
             key={a.label}
             data-testid={a.testid}
+            onClick={a.onClick}
             style={{
               width: a.big ? 76 : 58,
               height: a.big ? 76 : 58,

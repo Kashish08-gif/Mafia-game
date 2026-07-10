@@ -78,7 +78,8 @@ export const initializeSocket = (server) => {
     });
 
     socket.on("send-chat", (roomId, messageData) => {
-      io.to(roomId).emit("receive-chat", { id: socket.id, ...messageData });
+      // Broadcast to other players only — sender adds message optimistically on their own UI
+      socket.to(roomId).emit("receive-chat", { id: socket.id, ...messageData });
     });
 
     socket.on("disconnect", () => {
