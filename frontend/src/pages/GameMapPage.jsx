@@ -563,110 +563,89 @@ const onSnapshot = (snap) => {
         
       />
 
-      {/* LEFT-MIDDLE: Role panel */}
+      {/* LEFT-BOTTOM: Role badge + Chat stacked together */}
       <div
-        data-testid="hud-role-panel"
-        style={{
-          position: "absolute",
-          bottom: 280,
-          left: 16,
-          width: 270,
-          background: "linear-gradient(135deg, rgba(15,8,25,0.9) 0%, rgba(5,2,10,0.96) 100%)",
-          backdropFilter: "blur(12px)",
-          border: `1.5px solid ${meta.color}`,
-          boxShadow: `0 0 16px ${meta.color}33, inset 0 0 12px rgba(255, 215, 0, 0.1)`,
-          borderRadius: 16,
-          padding: 16,
-          zIndex: 10,
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            marginBottom: 12,
-          }}
-        >
-          <div style={{
-            color: meta.color,
-            background: `${meta.color}18`,
-            padding: 8,
-            borderRadius: 10,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: `0 0 8px ${meta.color}22`
-          }}>{meta.icon}</div>
-          <div>
-            <div
-              style={{ fontSize: 9, color: "#aaa", letterSpacing: "0.15em", fontWeight: 800 }}
-            >
-              YOUR ASSIGNED FATE
-            </div>
-            <div
-              style={{
-                fontSize: 22,
-                fontWeight: 900,
-                color: meta.color,
-                letterSpacing: "0.08em",
-                textShadow: `0 0 8px ${meta.color}55`,
-              }}
-            >
-              {meta.label}
-            </div>
-          </div>
-        </div>
-        <div style={{ fontSize: 10, color: "#ffd700", fontWeight: 800, letterSpacing: '0.05em', marginBottom: 8 }}>
-          SPECIAL ABILITIES
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {meta.abilities.map((a, i) => (
-            <div
-              key={i}
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: 'center',
-                padding: "6px 10px",
-                fontSize: 12,
-                background: 'rgba(255,255,255,0.02)',
-                border: '1px solid rgba(255,255,255,0.03)',
-                borderRadius: 8,
-              }}
-            >
-              <span style={{ color: '#eee', fontWeight: 600 }}>✦ {a.name}</span>
-              <span style={{ color: meta.color, fontWeight: 900, fontSize: 11, background: `${meta.color}15`, padding: '1px 6px', borderRadius: 4 }}>
-                {a.count}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* LEFT-BOTTOM: Chat */}
-      <div
-        data-testid="hud-chat"
         style={{
           position: "absolute",
           bottom: 16,
           left: 16,
           zIndex: 10,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 8,
+          width: 300,
         }}
       >
-        <ChatBox
-          messages={chat}
-          onSend={(text) => {
-            const sock = getSocket();
-            sock.emit("send-chat", roomId, {
-              sender: myName,
-              text,
-              color: myColor,
-              ts: Date.now(),
-            });
+        {/* Compact role badge above the chat */}
+        <div
+          data-testid="hud-role-panel"
+          style={{
+            background: "linear-gradient(135deg, rgba(15,8,25,0.92) 0%, rgba(5,2,10,0.97) 100%)",
+            backdropFilter: "blur(12px)",
+            border: `1.5px solid ${meta.color}`,
+            boxShadow: `0 0 14px ${meta.color}33`,
+            borderRadius: 14,
+            padding: '10px 14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
           }}
-          myColor={myColor}
-        />
+        >
+          <div style={{
+            color: meta.color,
+            background: `${meta.color}20`,
+            padding: '6px 7px',
+            borderRadius: 8,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: `0 0 6px ${meta.color}33`,
+            flexShrink: 0,
+          }}>{meta.icon}</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 9, color: '#aaa', letterSpacing: '0.15em', fontWeight: 800 }}>YOUR ROLE</div>
+            <div style={{ fontSize: 15, fontWeight: 900, color: meta.color, letterSpacing: '0.06em', textShadow: `0 0 6px ${meta.color}55` }}>
+              {meta.label}
+            </div>
+          </div>
+          {/* Abilities inline pills */}
+          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            {meta.abilities.map((a, i) => (
+              <span key={i} style={{
+                fontSize: 10,
+                fontWeight: 800,
+                color: meta.color,
+                background: `${meta.color}18`,
+                border: `1px solid ${meta.color}44`,
+                borderRadius: 6,
+                padding: '2px 7px',
+                whiteSpace: 'nowrap',
+              }}>✦ {a.name}</span>
+            ))}
+          </div>
+        </div>
+
+        {/* Chat box */}
+        <div data-testid="hud-chat">
+          <ChatBox
+            messages={chat}
+            onSend={(text) => {
+              // Optimistic: add own message immediately so it shows without waiting for echo
+              setChat((c) => [
+                ...c,
+                { sender: myName, text, color: myColor, ts: Date.now() },
+              ]);
+              const sock = getSocket();
+              sock.emit("send-chat", roomId, {
+                sender: myName,
+                text,
+                color: myColor,
+                ts: Date.now(),
+              });
+            }}
+            myColor={myColor}
+          />
+        </div>
       </div>
 
       {/* TOP CENTER: Day/Night clock */}

@@ -11,6 +11,18 @@ export default function LoadingScreen() {
 
   const [step, setStep] = useState(0);
   const [progress, setProgress] = useState(0);
+  const [isGameStartedReady, setIsGameStartedReady] = useState(false);
+
+  // Navigate only after BOTH backend confirms game start AND loading animation finishes
+  useEffect(() => {
+    if (progress === 100 && isGameStartedReady) {
+      // Add a tiny extra delay so players can see 100% complete state
+      const delayNav = setTimeout(() => {
+        navigate(`/role-reveal/${roomId || ""}`);
+      }, 500);
+      return () => clearTimeout(delayNav);
+    }
+  }, [progress, isGameStartedReady, navigate, roomId]);
 
   useEffect(() => {
     // Animation timers — purely cosmetic
@@ -28,8 +40,7 @@ export default function LoadingScreen() {
       else clearInterval(interval);
     }, 300);
 
-    // Poll the backend until gameStarted is confirmed, then navigate.
-    // This replaces the old fixed 5-second blind timer.
+    // Poll the backend until gameStarted is confirmed
     let cancelled = false;
     const MAX_WAIT_MS = 15000; // 15s hard timeout
     const POLL_INTERVAL_MS = 800;
@@ -44,14 +55,14 @@ export default function LoadingScreen() {
           });
           const data = await res.json();
           if (data?.room?.gameStarted) {
-            if (!cancelled) navigate(`/role-reveal/${roomId || ""}`);
+            if (!cancelled) setIsGameStartedReady(true);
             return;
           }
         } catch (_) { /* network hiccup — keep polling */ }
 
         // Hard timeout fallback
         if (Date.now() - startedAt >= MAX_WAIT_MS) {
-          if (!cancelled) navigate(`/role-reveal/${roomId || ""}`);
+          if (!cancelled) setIsGameStartedReady(true);
           return;
         }
 
@@ -66,7 +77,7 @@ export default function LoadingScreen() {
       timers.forEach(clearTimeout);
       clearInterval(interval);
     };
-  }, [navigate, roomId]);
+  }, [roomId]);
 
   return (
     <div className="loading-screen">
@@ -88,18 +99,56 @@ export default function LoadingScreen() {
       />
 
       <AnimatePresence>
-
-        {step >= 1 && (
+        {step === 1 && (
           <motion.div
-            className="eye"
+            className="eye-container"
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            exit={{ opacity: 0 }}
+            exit={{ scale: 0.8, opacity: 0 }}
+            transition={{ duration: 0.5 }}
           >
-            👁
+            <svg className="eye-svg" viewBox="0 0 100 60" width="120" height="72">
+              <defs>
+                <filter id="eyeGlow" x="-20%" y="-20%" width="140%" height="140%">
+                  <feGaussianBlur stdDeviation="3" result="blur" />
+                  <feMerge>
+                    <feMergeNode in="blur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+              </defs>
+              <path
+                d="M10 30 Q50 5 90 30 Q50 55 10 30 Z"
+                fill="rgba(255, 32, 32, 0.05)"
+                stroke="#ff2020"
+                strokeWidth="2.5"
+                filter="url(#eyeGlow)"
+                className="eye-lid"
+              />
+              <circle
+                cx="50"
+                cy="30"
+                r="14"
+                fill="none"
+                stroke="#ff2020"
+                strokeWidth="1.5"
+                strokeDasharray="4 2"
+                filter="url(#eyeGlow)"
+                className="eye-iris-ring"
+                style={{ transformOrigin: '50px 30px' }}
+              />
+              <circle
+                cx="50"
+                cy="30"
+                r="7"
+                fill="#ff2020"
+                filter="url(#eyeGlow)"
+                className="eye-pupil-glow"
+                style={{ transformOrigin: '50px 30px' }}
+              />
+            </svg>
           </motion.div>
         )}
-
       </AnimatePresence>
 
       <AnimatePresence>
