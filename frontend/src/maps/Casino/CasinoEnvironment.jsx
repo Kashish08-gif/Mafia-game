@@ -124,10 +124,10 @@ export default function CasinoEnvironment() {
           chairs.push({ id: child.uuid, name: child.name, pos: [cx, cy, cz], yaw: 0 });
         }
 
-        // Named table detection
+        // Named table detection (exclude bar/counter/roulette/register/cash/wheel/slots)
         if (
-          nm.includes('table') || nm.includes('blackjack') ||
-          nm.includes('poker') || nm.includes('card')
+          (nm.includes('table') || nm.includes('blackjack') || nm.includes('poker') || nm.includes('card')) &&
+          !nm.includes('bar') && !nm.includes('counter') && !nm.includes('roulette') && !nm.includes('register') && !nm.includes('cash') && !nm.includes('wheel') && !nm.includes('slot')
         ) {
           tables.push({ id: child.uuid, name: child.name, pos: [cx, cy, cz], yaw: 0 });
         }
@@ -139,52 +139,55 @@ export default function CasinoEnvironment() {
                 '| named tables:', tables.length);
 
     // ── Heuristic fallbacks when mesh names are generic ──────────────
-    //
-    //  Chair heuristic: small objects (XZ footprint < 1.0 m) with
-    //  enough height to be a chair back (> 0.5 m).
-    //
-    if (chairs.length === 0 && colliders.length > 0) {
+    // Always run heuristics in addition to name detection to ensure all
+    // objects are collected, but avoid adding duplicate positions.
+    if (colliders.length > 0) {
       colliders.forEach((box) => {
         const sx = box.maxX - box.minX;
         const sy = box.maxY - box.minY;
         const sz = box.maxZ - box.minZ;
-        if (sx < 1.0 && sz < 1.0 && sy > 0.5) {
+        const nmBox = (box.name || '').toLowerCase();
+
+        // Chair heuristic: small footprint, height between 0.4m and 2.0m (for high-back chairs)
+        if (sx < 1.1 && sz < 1.1 && sy > 0.4 && sy < 2.0) {
           const cx = (box.minX + box.maxX) / 2;
           const cy = (box.minY + box.maxY) / 2;
           const cz = (box.minZ + box.maxZ) / 2;
-          chairs.push({
-            id:   `auto-chair-${cx.toFixed(2)}-${cz.toFixed(2)}`,
-            name: box.name || 'Chair',
-            pos:  [cx, cy, cz],
-            yaw:  0,
-          });
+
+          const exists = chairs.some(c => Math.hypot(c.pos[0] - cx, c.pos[2] - cz) < 0.35);
+          if (!exists) {
+            chairs.push({
+              id: `auto-chair-${cx.toFixed(2)}-${cz.toFixed(2)}`,
+              name: box.name || 'Chair',
+              pos: [cx, cy, cz],
+              yaw: 0,
+            });
+          }
+        }
+
+        // Table heuristic: footprint > 0.8m, height < 1.4m (exclude bar/counter/roulette/slots)
+        if (
+          sx > 0.8 && sz > 0.8 && sy < 1.4 &&
+          !nmBox.includes('bar') && !nmBox.includes('counter') && !nmBox.includes('roulette') && !nmBox.includes('register') && !nmBox.includes('cash') && !nmBox.includes('wheel') && !nmBox.includes('slot')
+        ) {
+          const cx = (box.minX + box.maxX) / 2;
+          const cy = (box.minY + box.maxY) / 2;
+          const cz = (box.minZ + box.maxZ) / 2;
+
+          const exists = tables.some(t => Math.hypot(t.pos[0] - cx, t.pos[2] - cz) < 0.4);
+          if (!exists) {
+            tables.push({
+              id: `auto-table-${cx.toFixed(2)}-${cz.toFixed(2)}`,
+              name: box.name || 'Table',
+              pos: [cx, cy, cz],
+              yaw: 0,
+            });
+          }
         }
       });
-      console.log('[Casino] heuristic chairs found:', chairs.length);
     }
 
-    //  Table heuristic: large horizontal surfaces (XZ footprint > 0.8 m
-    //  both dimensions, height < 1.2 m).
-    //
-    if (tables.length === 0 && colliders.length > 0) {
-      colliders.forEach((box) => {
-        const sx = box.maxX - box.minX;
-        const sy = box.maxY - box.minY;
-        const sz = box.maxZ - box.minZ;
-        if (sx > 0.8 && sz > 0.8 && sy < 1.2) {
-          const cx = (box.minX + box.maxX) / 2;
-          const cy = (box.minY + box.maxY) / 2;
-          const cz = (box.minZ + box.maxZ) / 2;
-          tables.push({
-            id:   `auto-table-${cx.toFixed(2)}-${cz.toFixed(2)}`,
-            name: box.name || 'Table',
-            pos:  [cx, cy, cz],
-            yaw:  0,
-          });
-        }
-      });
-      console.log('[Casino] heuristic tables found:', tables.length);
-    }
+    console.log('[Casino] Final chairs collected:', chairs.length, '| tables collected:', tables.length);
 
     // Publish globally — Player.jsx + GameScene.jsx read these
     window.casinoColliders = colliders;
@@ -193,8 +196,16 @@ export default function CasinoEnvironment() {
       console.log('[Casino] sample chair pos:', chairs[0]?.pos);
     }
     if (tables.length > 0) {
+      // Sort tables so the one with the most surrounding chairs (within 4.5m) is at index 0 (the discussion table)
+      if (chairs.length > 0) {
+        tables.sort((a, b) => {
+          const countA = chairs.filter(c => Math.hypot(c.pos[0] - a.pos[0], c.pos[2] - a.pos[2]) < 4.5).length;
+          const countB = chairs.filter(c => Math.hypot(c.pos[0] - b.pos[0], c.pos[2] - b.pos[2]) < 4.5).length;
+          return countB - countA;
+        });
+      }
       window.casinoTables = tables;
-      console.log('[Casino] sample table pos:', tables[0]?.pos);
+      console.log('[Casino] sorted tables. Primary discussion table:', tables[0]?.name, 'at', tables[0]?.pos);
     }
 
     // ── Wrap and return ───────────────────────────────────────────────

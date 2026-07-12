@@ -58,14 +58,14 @@ export default function CasinoLights({ phase = 'DAY' }) {
     <group>
       {/* ── Ambient ── */}
       <ambientLight
-        intensity={isNight ? 0.15 : 1.8}
-        color={isNight ? '#160930' : '#fff5e6'}
+        intensity={isNight ? 0.04 : 1.8}
+        color={isNight ? '#100b26' : '#fff5e6'}
       />
 
       {/* ── Primary directional (sun / moon) ── */}
       <directionalLight
         position={isNight ? [-30, 60, -20] : [25, 50, 15]}
-        intensity={isNight ? 0.1 : 2.5}
+        intensity={isNight ? 0.05 : 2.5}
         color={isNight ? '#3a2e7c' : '#ffe0b2'}
         castShadow
         shadow-mapSize-width={2048}
@@ -83,64 +83,64 @@ export default function CasinoLights({ phase = 'DAY' }) {
         <pointLight
           position={[-25, 70, -25]}
           color="#7c8cff"
-          intensity={1.4}
-          distance={200}
+          intensity={0.08}
+          distance={80}
         />
       )}
 
-      {/* ── Neon accent point lights (always on, brighter at night) ── */}
+      {/* ── Neon accent point lights (always on, dimmed and focused to avoid wash-out at night) ── */}
       {/* Gold entrance */}
       <pointLight
         position={[0, 4, -20]}
         color="#ffd700"
-        intensity={isNight ? 4.0 : 2.0}
-        distance={28}
+        intensity={isNight ? 1.5 : 2.0}
+        distance={isNight ? 12 : 28}
         decay={2}
       />
       {/* Cyan fountain */}
       <pointLight
         position={[0, 3, 0]}
         color="#00e5ff"
-        intensity={isNight ? 4.5 : 2.5}
-        distance={20}
+        intensity={isNight ? 1.8 : 2.5}
+        distance={isNight ? 12 : 20}
         decay={2}
       />
       {/* Red bar side */}
       <pointLight
         position={[-28, 5, 28]}
         color="#ff4400"
-        intensity={isNight ? 3.5 : 1.5}
-        distance={22}
+        intensity={isNight ? 1.2 : 1.5}
+        distance={isNight ? 12 : 22}
         decay={2}
       />
       {/* Blue police wing */}
       <pointLight
         position={[28, 5, -28]}
         color="#2277ff"
-        intensity={isNight ? 3.5 : 1.5}
-        distance={22}
+        intensity={isNight ? 1.2 : 1.5}
+        distance={isNight ? 12 : 22}
         decay={2}
       />
       {/* Green bank */}
       <pointLight
         position={[-28, 5, -28]}
         color="#00ff88"
-        intensity={isNight ? 3.0 : 1.2}
-        distance={22}
+        intensity={isNight ? 1.0 : 1.2}
+        distance={isNight ? 12 : 22}
         decay={2}
       />
       {/* Purple lounge */}
       <pointLight
         position={[28, 5, 28]}
         color="#cc22ff"
-        intensity={isNight ? 3.0 : 1.2}
-        distance={22}
+        intensity={isNight ? 1.0 : 1.2}
+        distance={isNight ? 12 : 22}
         decay={2}
       />
 
       {/* ── Casino entrance fill lights ── */}
-      <pointLight position={[-6, 5, -24]} color="#ffd700" intensity={isNight ? 3 : 1.5} distance={16} decay={2} />
-      <pointLight position={[ 6, 5, -24]} color="#ffd700" intensity={isNight ? 3 : 1.5} distance={16} decay={2} />
+      <pointLight position={[-6, 5, -24]} color="#ffd700" intensity={isNight ? 1.0 : 1.5} distance={isNight ? 10 : 16} decay={2} />
+      <pointLight position={[ 6, 5, -24]} color="#ffd700" intensity={isNight ? 1.0 : 1.5} distance={isNight ? 10 : 16} decay={2} />
 
       {/* ── Rotating sky searchlights (night only, dimmed during day) ── */}
       <SkySearchlight
@@ -160,7 +160,7 @@ export default function CasinoLights({ phase = 'DAY' }) {
       />
 
       {/* ── Night atmosphere fog ── */}
-      {isNight && <fog attach="fog" args={['#06020c', 40, 110]} />}
+      {isNight && <fog attach="fog" args={['#04010a', 25, 90]} />}
     </group>
   );
 }

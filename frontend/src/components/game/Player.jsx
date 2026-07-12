@@ -95,15 +95,25 @@ export default function Player({
     return () => clearInterval(id);
   }, []);
 
-  // ── Nearest chair helper ─────────────────────────────────────────
+  // ── Nearest chair helper ────────────────────────────────────────
   const getNearestChair = () => {
+    if (phase !== 'DAY') return { chair: null, dist: Infinity };
+
     const chairs = window.casinoChairs;
+    // Use the hardcoded discussion table position (published by DiscussionCorner)
+    const tablePos = window.discussionTablePos;
+    const tableRadius = window.discussionTableRadius || 5.0;
     if (!chairs || chairs.length === 0) return { chair: null, dist: Infinity };
+    if (!tablePos) return { chair: null, dist: Infinity };
 
     const [px, , pz] = posRef.current || position;
     let nearest = null, minDist = Infinity;
 
     chairs.forEach((c) => {
+      // Only consider chairs near the discussion table
+      const distToTable = Math.hypot(c.pos[0] - tablePos[0], c.pos[2] - tablePos[2]);
+      if (distToTable > tableRadius) return;
+
       const d = Math.hypot(c.pos[0] - px, c.pos[2] - pz);
       if (d < minDist) { minDist = d; nearest = c; }
     });
@@ -131,18 +141,13 @@ export default function Player({
         posRef.current = [chair.pos[0], 0, chair.pos[2]];
         setPosition([chair.pos[0], 0, chair.pos[2]]);
 
-        // Face the nearest table (or just flip 180° if no table found)
-        const tables = window.casinoTables || [];
+        // Face the hardcoded discussion table center when sitting
+        const tablePos = window.discussionTablePos;
         let facingYaw = chair.yaw + Math.PI;
-        if (tables.length > 0) {
-          let nearestTable = tables[0], nearestTableDist = Infinity;
-          tables.forEach((t) => {
-            const d = Math.hypot(t.pos[0] - chair.pos[0], t.pos[2] - chair.pos[2]);
-            if (d < nearestTableDist) { nearestTableDist = d; nearestTable = t; }
-          });
+        if (tablePos) {
           facingYaw = Math.atan2(
-            nearestTable.pos[0] - chair.pos[0],
-            nearestTable.pos[2] - chair.pos[2],
+            tablePos[0] - chair.pos[0],
+            tablePos[2] - chair.pos[2],
           );
         }
 
@@ -217,6 +222,21 @@ export default function Player({
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gl]);
+
+  // Auto stand up when phase changes away from DAY
+  useEffect(() => {
+    if (phase !== 'DAY' && isSitting) {
+      const chair = sittingChairRef.current;
+      if (chair) {
+        const sx = chair.pos[0] - Math.sin(chair.yaw) * 1.2;
+        const sz = chair.pos[2] - Math.cos(chair.yaw) * 1.2;
+        posRef.current = [sx, 0, sz];
+        setPosition([sx, 0, sz]);
+      }
+      setIsSitting(false);
+      sittingChairRef.current = null;
+    }
+  }, [phase, isSitting, setPosition, setIsSitting]);
 
   // ── Collision helper ─────────────────────────────────────────────
   function isBlocked(x, z) {

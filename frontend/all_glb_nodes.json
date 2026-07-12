@@ -1,0 +1,392 @@
+[
+  {
+    "nodeIndex": 0,
+    "nodeName": "Sketchfab_model",
+    "meshName": null,
+    "translation": [
+      720.5567321777344,
+      172.66802978515625,
+      0.29016113281255684
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  },
+  {
+    "nodeIndex": 1,
+    "nodeName": "Collada visual scene group",
+    "meshName": null,
+    "translation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  },
+  {
+    "nodeIndex": 2,
+    "nodeName": "Material4",
+    "meshName": "Material4",
+    "translation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  },
+  {
+    "nodeIndex": 3,
+    "nodeName": "Material4",
+    "meshName": "Material4",
+    "translation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  },
+  {
+    "nodeIndex": 4,
+    "nodeName": "Material2",
+    "meshName": "Material2",
+    "translation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  },
+  {
+    "nodeIndex": 5,
+    "nodeName": "Material2",
+    "meshName": "Material2",
+    "translation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  },
+  {
+    "nodeIndex": 6,
+    "nodeName": "Material2",
+    "meshName": "Material2",
+    "translation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  },
+  {
+    "nodeIndex": 7,
+    "nodeName": "Material2",
+    "meshName": "Material2",
+    "translation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  },
+  {
+    "nodeIndex": 8,
+    "nodeName": "Material2",
+    "meshName": "Material2",
+    "translation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  },
+  {
+    "nodeIndex": 9,
+    "nodeName": "Material2",
+    "meshName": "Material2",
+    "translation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  },
+  {
+    "nodeIndex": 10,
+    "nodeName": "Material2",
+    "meshName": "Material2",
+    "translation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  },
+  {
+    "nodeIndex": 11,
+    "nodeName": "Material3",
+    "meshName": "Material3",
+    "translation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  },
+  {
+    "nodeIndex": 12,
+    "nodeName": "Material3",
+    "meshName": "Material3",
+    "translation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  },
+  {
+    "nodeIndex": 13,
+    "nodeName": "Material3",
+    "meshName": "Material3",
+    "translation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  },
+  {
+    "nodeIndex": 14,
+    "nodeName": "Material3",
+    "meshName": "Material3",
+    "translation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  },
+  {
+    "nodeIndex": 15,
+    "nodeName": "Material3",
+    "meshName": "Material3",
+    "translation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  },
+  {
+    "nodeIndex": 16,
+    "nodeName": "Material3",
+    "meshName": "Material3",
+    "translation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  },
+  {
+    "nodeIndex": 17,
+    "nodeName": "Material3",
+    "meshName": "Material3",
+    "translation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  },
+  {
+    "nodeIndex": 18,
+    "nodeName": "Material3",
+    "meshName": "Material3",
+    "translation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  },
+  {
+    "nodeIndex": 19,
+    "nodeName": "Material3",
+    "meshName": "Material3",
+    "translation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  },
+  {
+    "nodeIndex": 20,
+    "nodeName": "Material3",
+    "meshName": "Material3",
+    "translation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  },
+  {
+    "nodeIndex": 21,
+    "nodeName": "Material3",
+    "meshName": "Material3",
+    "translation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  },
+  {
+    "nodeIndex": 22,
+    "nodeName": "Material3",
+    "meshName": "Material3",
+    "translation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  },
+  {
+    "nodeIndex": 23,
+    "nodeName": "SketchUp",
+    "meshName": null,
+    "translation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  },
+  {
+    "nodeIndex": 24,
+    "nodeName": "skp_camera_Last_Saved_SketchUp_View",
+    "meshName": null,
+    "translation": [
+      406.5923,
+      43.51062,
+      -35.5793
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  },
+  {
+    "nodeIndex": 25,
+    "nodeName": "ID1",
+    "meshName": null,
+    "translation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  }
+]

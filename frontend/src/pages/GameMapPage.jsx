@@ -497,7 +497,7 @@ const onSnapshot = (snap) => {
             zIndex: 20,
           }}
         >
-          [ESC] Show Cursor | [E] Sit / Stand
+          [ESC] Show Cursor
         </div>
       )}
 
@@ -921,7 +921,7 @@ const onSnapshot = (snap) => {
             zIndex: 10,
           }}
         >
-          ☀ Day Discussion — head to the golden fountain to meet & vote!
+          ☀ Day Discussion — head to the Discussion Table to meet & vote!
         </div>
       )}
 

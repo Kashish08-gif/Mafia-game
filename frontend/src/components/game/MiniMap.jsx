@@ -19,14 +19,26 @@ export default function MiniMap({
   buildings = [],
   fountainPos = [0, 0],
 }) {
-  const W = 180;
-  const H = 140;
+  const W = 260;
+  const H = 260;
 
   // Map world coordinate range [-45, 45] to UI pixel bounds [0, W] & [0, H]
-  const worldToMap = (x, z) => ({
-    left: ((x + 45) / 90) * W,
-    top: ((z + 45) / 90) * H,
-  });
+const WORLD_SIZE = 80;
+
+const worldToMap = (x, z) => ({
+  left: ((x + WORLD_SIZE) / (WORLD_SIZE * 2)) * W,
+  top: ((z + WORLD_SIZE) / (WORLD_SIZE * 2)) * H,
+});
+  const locations = [
+    { name: "COURTYARD", x: 0, z: 0 },
+    { name: "VIP", x: -20, z: 0 },
+    { name: "LOUNGE", x: 22, z: 10 },
+    { name: "KITCHEN", x: -30, z: 20 },
+    { name: "LIBRARY", x: -30, z: -20 },
+    { name: "STORAGE", x: 28, z: -18 },
+    { name: "BASEMENT", x: 0, z: 30 },
+    { name: "GARDEN", x: 0, z: -30 },
+  ];
 
   return (
     <div
@@ -38,11 +50,22 @@ export default function MiniMap({
         background:
           'radial-gradient(ellipse at center, rgba(50,30,40,0.85), rgba(10,5,15,0.95))',
         border: '1.5px solid rgba(255,180,80,0.4)',
-        borderRadius: 90,
+        borderRadius: "50%",
         overflow: 'hidden',
         boxShadow: '0 0 16px rgba(0,0,0,0.6)',
       }}
     >
+     <div
+      style={{
+        position: "absolute",
+        width: "100%",
+        height: "100%",
+        borderRadius: "50%",
+        background:
+          "conic-gradient(from 0deg, rgba(0,255,0,.25), transparent 40%)",
+        animation: "spin 4s linear infinite",
+      }}
+    />
       {/* Building Outlines */}
       {buildings.map((b) => {
         const { left, top } = worldToMap(b.pos[0], b.pos[1]);
@@ -85,45 +108,86 @@ export default function MiniMap({
           boxShadow: '0 0 8px #ffd700',
         }}
       />
+      {locations.map((room) => {
+        const { left, top } = worldToMap(room.x, room.z);
+
+        return (
+          <div
+            key={room.name}
+            style={{
+              position: "absolute",
+              left,
+              top,
+              transform: "translate(-50%, -50%)",
+              color: "#ffffff",
+              fontSize: 9,
+              fontWeight: 700,
+              textShadow: "0 0 5px black",
+              pointerEvents: "none",
+            }}
+          >
+            {room.name}
+          </div>
+        );
+      })}
 
       {/* Remote Players Dots */}
+      {/* Remote Players */}
       {players.map((p) => {
         const { left, top } = worldToMap(
           p.position?.x || 0,
           p.position?.z || 0
         );
+
         return (
-          <div
-            key={p.id}
-            style={{
-              position: 'absolute',
-              left: left - 3,
-              top: top - 3,
-              width: 6,
-              height: 6,
-              borderRadius: '50%',
-              background: p.color || '#fff',
-              boxShadow: `0 0 4px ${p.color || '#fff'}`,
-            }}
-          />
+          <div key={p.id}>
+            <div
+              style={{
+                position: "absolute",
+                left: left - 4,
+                top: top - 4,
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                background: p.color || "#00ff00",
+                boxShadow: `0 0 8px ${p.color || "#00ff00"}`
+              }}
+            />
+
+            <div
+              style={{
+                position: "absolute",
+                left: left + 8,
+                top: top - 8,
+                color: "white",
+                fontSize: 8,
+                fontWeight: "bold",
+                textShadow: "0 0 3px black",
+              }}
+            >
+              {p.name}
+            </div>
+          </div>
         );
       })}
 
-      {/* Local Player Dot (Arrow / Circle indicator) */}
+      {/* Local Player */}
       {(() => {
         const { left, top } = worldToMap(myPos[0], myPos[2]);
+
         return (
           <div
             style={{
-              position: 'absolute',
-              left: left - 6,
-              top: top - 6,
-              width: 12,
-              height: 12,
-              borderRadius: '50%',
+              position: "absolute",
+              left: left - 8,
+              top: top - 8,
+              width: 16,
+              height: 16,
+              borderRadius: "50%",
               background: myColor,
-              border: '2px solid #fff',
-              boxShadow: `0 0 8px ${myColor}`,
+              border: "2px solid white",
+              boxShadow: `0 0 10px ${myColor}`,
+              animation: "pulse 1s infinite",
             }}
           />
         );
