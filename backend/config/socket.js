@@ -212,6 +212,7 @@ export const initializeSocket = (server) => {
       }
     });
 
+
     socket.on("cast-vote", (roomId, { targetId }) => {
       if (mapRooms[roomId]) {
         if (!mapRooms[roomId].votes) {

@@ -107,10 +107,10 @@ export default function CasinoEnvironment() {
 
       if (
         sizeX > 0.05 && sizeZ > 0.05 &&              // not degenerate
-        sizeX < 6    && sizeZ < 6    &&              // not a wall / floor
-        sizeY > 0.07 && sizeY < 2.5 &&              // furniture height range
-        ab.maxY > 0.05 &&                            // above ground
-        ab.minY < 1.8                                // within player height
+        !(sizeX > 12 && sizeZ > 12) &&               // not a giant floor/ceiling (e.g. 15m x 15m+)
+        sizeY > 0.05 && sizeY < 2.5 &&               // physical height range (excludes ceiling-only items)
+        ab.maxY > 0.05 &&                            // above ground level
+        ab.minY < 2.0                                // within player height
       ) {
         colliders.push({ ...ab, name: child.name });
 
@@ -191,16 +191,24 @@ export default function CasinoEnvironment() {
 
     // Publish globally — Player.jsx + GameScene.jsx read these
     window.casinoColliders = colliders;
-    if (chairs.length > 0) {
-      window.casinoChairs = chairs;
-      console.log('[Casino] sample chair pos:', chairs[0]?.pos);
-    }
+
+    // Merge dynamically detected chairs with existing chairs (like hardcoded discussion chairs)
+    const existingChairs = window.casinoChairs || [];
+    const mergedChairs = [...existingChairs];
+    chairs.forEach(c => {
+      const exists = mergedChairs.some(ec => Math.hypot(ec.pos[0] - c.pos[0], ec.pos[2] - c.pos[2]) < 0.8);
+      if (!exists) {
+        mergedChairs.push(c);
+      }
+    });
+    window.casinoChairs = mergedChairs;
+
     if (tables.length > 0) {
       // Sort tables so the one with the most surrounding chairs (within 4.5m) is at index 0 (the discussion table)
-      if (chairs.length > 0) {
+      if (mergedChairs.length > 0) {
         tables.sort((a, b) => {
-          const countA = chairs.filter(c => Math.hypot(c.pos[0] - a.pos[0], c.pos[2] - a.pos[2]) < 4.5).length;
-          const countB = chairs.filter(c => Math.hypot(c.pos[0] - b.pos[0], c.pos[2] - b.pos[2]) < 4.5).length;
+          const countA = mergedChairs.filter(c => Math.hypot(c.pos[0] - a.pos[0], c.pos[2] - a.pos[2]) < 4.5).length;
+          const countB = mergedChairs.filter(c => Math.hypot(c.pos[0] - b.pos[0], c.pos[2] - b.pos[2]) < 4.5).length;
           return countB - countA;
         });
       }

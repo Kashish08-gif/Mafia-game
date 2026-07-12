@@ -206,8 +206,10 @@ export default function PlayerAvatar({
     // ── 2. Smooth world position + rotation of root group ───────────
     if (groupRef.current) {
       // Lerp position (especially useful for remote players arriving in steps)
+      // When sitting, visually elevate the player to sit on the high casino stool seat (net butt height ~0.78m)
+      const targetY = position[1] + (sitting ? 1.10 : 0);
       groupRef.current.position.lerp(
-        { x: position[0], y: position[1], z: position[2] },
+        { x: position[0], y: targetY, z: position[2] },
         Math.min(1, delta * 18),
       );
       // Lerp yaw — shortest-arc to avoid 360° spin
@@ -233,8 +235,8 @@ export default function PlayerAvatar({
     const phase = walkPhase.current;
 
     // ── 5. Compute animation values ──────────────────────────────────
-    // If sitting, override targets for sitting posture
-    const legSwing   = sitting ? -Math.PI / 2 : Math.sin(phase) * LEG_SWING * b;
+    // If sitting, override targets for sitting posture (dangle legs naturally at -0.85 rad)
+    const legSwing   = sitting ? -0.85 : Math.sin(phase) * LEG_SWING * b;
     const armSwing   = sitting ? -0.45 : Math.sin(phase) * ARM_SWING * b;
     const bob        = sitting ? -0.32 : (1 - Math.cos(phase * 2)) * 0.5 * BOB_HEIGHT * b;
     const lean       = sitting ? 0 : b * LEAN_AMOUNT;
@@ -267,7 +269,7 @@ export default function PlayerAvatar({
     }
     if (rightLegRef.current) {
       rightLegRef.current.rotation.x = THREE.MathUtils.lerp(
-        rightLegRef.current.rotation.x, sitting ? -Math.PI / 2 : -legSwing, delta * 20,
+        rightLegRef.current.rotation.x, sitting ? -0.85 : -legSwing, delta * 20,
       );
       rightLegRef.current.rotation.y = THREE.MathUtils.lerp(
         rightLegRef.current.rotation.y, 0, delta * 20,

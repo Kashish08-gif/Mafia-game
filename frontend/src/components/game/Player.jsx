@@ -59,6 +59,7 @@ export default function Player({
   phase     = 'DAY',
   isSitting = false,
   setIsSitting,
+  players = [],
 }) {
   const { camera, gl } = useThree();
 
@@ -110,9 +111,18 @@ export default function Player({
     let nearest = null, minDist = Infinity;
 
     chairs.forEach((c) => {
-      // Only consider chairs near the discussion table
+      // 1. Only consider chairs near the discussion table
       const distToTable = Math.hypot(c.pos[0] - tablePos[0], c.pos[2] - tablePos[2]);
       if (distToTable > tableRadius) return;
+
+      // 2. Check if occupied by another player
+      const isOccupied = players.some(p => {
+        if (!p.sitting) return false;
+        const rx = p.position?.x ?? 0;
+        const rz = p.position?.z ?? 0;
+        return Math.hypot(c.pos[0] - rx, c.pos[2] - rz) < 0.6;
+      });
+      if (isOccupied) return;
 
       const d = Math.hypot(c.pos[0] - px, c.pos[2] - pz);
       if (d < minDist) { minDist = d; nearest = c; }
@@ -270,6 +280,12 @@ export default function Player({
         if (isSitting && sittingChairRef.current?.id === c.id) continue; // skip our own chair
         if (Math.hypot(x - c.pos[0], z - c.pos[2]) < 0.38 + PLAYER_RADIUS) return true;
       }
+    }
+
+    // L5 — Discussion Table collider (cylinder check)
+    const tablePos = window.discussionTablePos;
+    if (tablePos) {
+      if (Math.hypot(x - tablePos[0], z - tablePos[2]) < 2.2 + PLAYER_RADIUS) return true;
     }
 
     return false;
