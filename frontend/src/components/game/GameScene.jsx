@@ -15,21 +15,22 @@ import Loading3D    from './Loading3D';
 import CasinoMap    from '../CasinoMap';
 
 // ── HARDCODED discussion table position (green poker table with black chairs)
-// Confirmed from in-game coords: player was at X:0.4 Z:6.7 when standing AT the green table.
-// Table center is approximately [0, 0, 7].
-export const DISCUSSION_TABLE_POS    = [0, 0, 7];
-// Radius of chair ring around the table (used for sit detection)
-export const DISCUSSION_TABLE_RADIUS = 5.5;
-// Sit-detection radius from a chair
-export const SIT_CHAIR_RADIUS        = 2.5;
+// Calibrated from in-game coords: player was at X:-0.9 Z:4.9 when standing AT the table edge.
+// Table center estimated at approximately [0, 0, 3.5].
+export const DISCUSSION_TABLE_POS    = [0, 0, 12.5];
+// Radius around table within which chairs are considered "discussion chairs"
+export const DISCUSSION_TABLE_RADIUS = 5.0;
+// Sit-detection radius from a chair (how close player must be to trigger prompt)
+export const SIT_CHAIR_RADIUS        = 5.5;
 
 // ── Generate hardcoded chair positions in a ring around the table ──
-// The GLB casino is one baked mesh - we can't detect chairs by name.
-// These positions are tuned to match the visible black chairs around the green poker table.
-// Chair ring radius 2.1m, 8 chairs, starting from the south (facing player spawn direction).
+// The GLB casino bakes everything into one mesh — chairs cannot be detected by name.
+// These positions are tuned to match the 8 visible black chairs around the green poker table.
+// The table is a perfect circle in 3D space (looks like an ellipse only due to low camera perspective).
+// R = 3.4m matches the physical chair positions perfectly.
 function buildDiscussionChairs() {
   const [tx, , tz] = DISCUSSION_TABLE_POS;
-  const R = 2.1;   // radius in world units — tuned to match visible chair positions
+  const R = 3.4;   // radius in world units
   const N = 8;
   const chairs = [];
   for (let i = 0; i < N; i++) {
@@ -89,8 +90,8 @@ function BouncingArrow({ center }) {
 
 // ── Discussion Corner Table Overlay ──────────────────────────────
 function DiscussionCorner({ phase }) {
-  // Use the hardcoded table position — GLB has no semantic names
-  const center = [DISCUSSION_TABLE_POS[0], 0.05, DISCUSSION_TABLE_POS[2]];
+  const [tx, , tz] = DISCUSSION_TABLE_POS;
+
   // Publish to global window so Player.jsx can read it
   useEffect(() => {
     window.discussionTablePos    = DISCUSSION_TABLE_POS;
@@ -99,43 +100,57 @@ function DiscussionCorner({ phase }) {
     // so dynamic detection cannot find them. These synthetic positions match the
     // ring of black chairs visible around the green poker table.
     window.casinoChairs = DISCUSSION_CHAIRS;
+    console.log('[DiscussionCorner] Table pos:', DISCUSSION_TABLE_POS, '| Chairs:', DISCUSSION_CHAIRS.length);
   }, []);
 
   if (phase !== 'DAY') return null;
 
   return (
-    <group position={[center[0], 0, center[2]]}>
-      {/* Tight glowing ring ON the table surface (radius matches table top ~1.6m) */}
+    <group position={[tx, 0, tz]}>
+      {/* Glowing ring ON the table surface — radius 2.2m fits the circular poker table top */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.08, 0]}>
-        <ringGeometry args={[1.5, 1.65, 64]} />
+        <ringGeometry args={[2.0, 2.2, 64]} />
         <meshStandardMaterial
           color="#ffd700"
           emissive="#ffd700"
-          emissiveIntensity={3.0}
+          emissiveIntensity={3.5}
           transparent
-          opacity={0.8}
+          opacity={0.85}
         />
       </mesh>
 
-      {/* Glowing dot at each hardcoded chair position to guide players */}
+      {/* Subtle inner table glow (filled circle so table top pulses) */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.07, 0]}>
+        <circleGeometry args={[2.0, 48]} />
+        <meshStandardMaterial
+          color="#ffd700"
+          emissive="#ffd700"
+          emissiveIntensity={0.4}
+          transparent
+          opacity={0.08}
+        />
+      </mesh>
+
+      {/* Glowing dot at each chair position to guide players where to sit */}
       {DISCUSSION_CHAIRS.map((chair) => (
         <mesh
           key={chair.id}
-          position={[chair.pos[0] - center[0], 0.04, chair.pos[2] - center[2]]}
+          // positions are absolute world coords; subtract group origin (tx, tz) to get local
+          position={[chair.pos[0] - tx, 0.05, chair.pos[2] - tz]}
           rotation={[-Math.PI / 2, 0, 0]}
         >
-          <circleGeometry args={[0.22, 16]} />
+          <circleGeometry args={[0.2, 16]} />
           <meshStandardMaterial
             color="#ffd700"
             emissive="#ffd700"
-            emissiveIntensity={4}
+            emissiveIntensity={5}
             transparent
             opacity={0.9}
           />
         </mesh>
       ))}
 
-      {/* Rotating bouncing golden 3D pointer */}
+      {/* Rotating bouncing golden 3D arrow — sits above the TABLE, not the player */}
       <BouncingArrow />
 
       {/* Floating badge above the discussion table */}
@@ -165,7 +180,7 @@ function DiscussionCorner({ phase }) {
 }
 
 // ── Hover tooltip when standing near a chair ─────────────────────
-function DiscussionInteractionZone({ myPos, phase, isSitting }) {
+function DiscussionInteractionZone({ myPos, phase, isSitting, players = [] }) {
   const [nearestChair, setNearestChair] = useState(null);
 
   useEffect(() => {
@@ -190,6 +205,15 @@ function DiscussionInteractionZone({ myPos, phase, isSitting }) {
         const distToTable = Math.hypot(c.pos[0] - tablePos[0], c.pos[2] - tablePos[2]);
         if (distToTable > tableRadius) return;
 
+        // Skip chair if it is occupied by any remote player
+        const isOccupied = players.some(p => {
+          if (!p.sitting) return false;
+          const rx = p.position?.x ?? 0;
+          const rz = p.position?.z ?? 0;
+          return Math.hypot(c.pos[0] - rx, c.pos[2] - rz) < 0.6;
+        });
+        if (isOccupied) return;
+
         const d = Math.hypot(c.pos[0] - px, c.pos[2] - pz);
         if (d < minDist) { minDist = d; nearest = c; }
       });
@@ -203,7 +227,7 @@ function DiscussionInteractionZone({ myPos, phase, isSitting }) {
     }, 100);
 
     return () => clearInterval(interval);
-  }, [myPos, phase, isSitting]);
+  }, [myPos, phase, isSitting, players]);
 
   if (!nearestChair) return null;
 
@@ -303,7 +327,7 @@ export default function GameScene({
       <DiscussionCorner phase={phase} />
 
       {/* Sitting interaction zones */}
-      <DiscussionInteractionZone myPos={myPos} phase={phase} isSitting={isSitting} />
+      <DiscussionInteractionZone myPos={myPos} phase={phase} isSitting={isSitting} players={players} />
 
       {/* WASD character controller */}
       <Player
@@ -316,6 +340,7 @@ export default function GameScene({
         phase={phase}
         isSitting={isSitting}
         setIsSitting={setIsSitting}
+        players={players}
       />
 
       {/* Local player avatar */}
