@@ -38,33 +38,20 @@ export default function PerformanceHUD() {
   }, [autoRefresh]);
 
   if (!metrics) {
-    // Provide default metrics if performance system not ready
-    return (
-      <div
-        style={{
-          position: 'fixed',
-          top: 70,
-          right: 16,
-          zIndex: 20,
-          fontFamily: 'monospace',
-          fontSize: '12px',
-        }}
-      >
-        <div
-          style={{
-            background: 'rgba(0, 0, 0, 0.8)',
-            border: '1px solid rgba(255, 215, 0, 0.5)',
-            borderRadius: 8,
-            padding: '8px 12px',
-            color: '#888',
-          }}
-        >
-          <Activity size={14} style={{ display: 'inline-block', marginRight: 6 }} />
-          Loading...
-        </div>
-      </div>
-    );
-  }
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: 70,
+        right: 16,
+        zIndex: 20,
+        color: "white",
+      }}
+    >
+      Waiting for Performance System...
+    </div>
+  );
+}
 
   const getStatusColor = (fps) => {
     if (fps >= 55) return '#00ff00';
