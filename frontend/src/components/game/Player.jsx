@@ -60,6 +60,7 @@ export default function Player({
   isSitting = false,
   setIsSitting,
   players = [],
+  discussionActive = false,
 }) {
   const { camera, gl } = useThree();
 
@@ -134,6 +135,14 @@ export default function Player({
   const handleInteractRef = useRef();
   handleInteractRef.current = () => {
     if (isSitting) {
+      // Block stand-up during active discussion
+      if (discussionActive) {
+        window.dispatchEvent(new CustomEvent('discussion-locked-local', {
+          detail: { message: '🔒 You cannot leave during discussion!' }
+        }));
+        console.log('[Player] Stand-up blocked — discussion is active');
+        return;
+      }
       // Stand up — eject player behind the chair so they clear its collider
       const chair = sittingChairRef.current;
       if (chair) {
@@ -308,17 +317,22 @@ export default function Player({
     const moving = dx !== 0 || dz !== 0;
     const p = posRef.current;
 
-    // Auto-stand when sitting + moving
+    // Auto-stand when sitting + moving — BLOCKED during discussion
     if (isSitting && moving) {
-      const chair = sittingChairRef.current;
-      if (chair) {
-        const sx = chair.pos[0] - Math.sin(chair.yaw) * 1.2;
-        const sz = chair.pos[2] - Math.cos(chair.yaw) * 1.2;
-        posRef.current = [sx, 0, sz];
-        setPosition([sx, 0, sz]);
+      if (discussionActive) {
+        // Silently suppress movement while locked in seat
+        // (no stand-up, no movement)
+      } else {
+        const chair = sittingChairRef.current;
+        if (chair) {
+          const sx = chair.pos[0] - Math.sin(chair.yaw) * 1.2;
+          const sz = chair.pos[2] - Math.cos(chair.yaw) * 1.2;
+          posRef.current = [sx, 0, sz];
+          setPosition([sx, 0, sz]);
+        }
+        setIsSitting(false);
+        sittingChairRef.current = null;
       }
-      setIsSitting(false);
-      sittingChairRef.current = null;
       return;
     }
 

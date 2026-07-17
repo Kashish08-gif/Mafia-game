@@ -37,6 +37,8 @@ import ChatBox from "../components/game/ChatBox.jsx";
 import VotingPanel from "../components/game/VotingPanel.jsx";
 import MiniMap from "../components/game/MiniMap.jsx";
 import PerformanceHUD from "../components/game/PerformanceHUD.jsx";
+import DiscussionChatPage from "../components/game/DiscussionChatPage.jsx";
+import useVoiceChat from "../hooks/useVoiceChat.js";
 
 // ── role meta ──────────────────────────────────────────────
 const ROLE_META = {
@@ -140,6 +142,18 @@ export default function GameMapPage() {
   const [pointerLocked, setPointerLocked] = useState(false);
   const [isSitting, setIsSitting] = useState(false);
 
+  // ── Discussion state ─────────────────────────────────────────────
+  const [discussionActive, setDiscussionActive] = useState(false);
+  const [discussionWaiting, setDiscussionWaiting] = useState(false); // waiting for all to sit
+  const [discussionMessages, setDiscussionMessages] = useState([]);
+  const [discussionPlayers, setDiscussionPlayers] = useState([]);
+  const [seatedIds, setSeatedIds] = useState([]);
+  const [lockedMessage, setLockedMessage] = useState(null);
+  const lockedMsgTimerRef = useRef(null);
+  const [subPhase, setSubPhase] = useState("ROAMING"); // ROAMING, DISCUSSION, VOTING, REVEAL
+  const [votedIds, setVotedIds] = useState([]);
+  const [revealData, setRevealData] = useState(null);
+
   // Total players in the DB room, default to 5
   const [dbTotalPlayers, setDbTotalPlayers] = useState(5);
 
@@ -227,17 +241,20 @@ export default function GameMapPage() {
       role: myRole,
       position: { x: myPos[0], y: 0, z: myPos[2] },
     });
-const onSnapshot = (snap) => {
-  console.log("========== SNAPSHOT ==========");
-  console.log(snap);
-  console.log("Players received:", snap.players);
+    const onSnapshot = (snap) => {
+      console.log("========== SNAPSHOT ==========");
+      console.log(snap);
+      console.log("Players received:", snap.players);
+      setPlayers((snap.players || []).filter((p) => p.id !== sock.id));
+      setPhase(snap.phase || "DAY");
+      setTimer(snap.timer || 0);
+      setDay(snap.day || 1);
+      if (snap.discussionActive) {
+        setDiscussionActive(true);
+        setSubPhase(snap.subPhase || "DISCUSSION");
+      }
+    };
 
-  setPlayers((snap.players || []).filter((p) => p.id !== sock.id));
-
-  setPhase(snap.phase || "DAY");
-  setTimer(snap.timer || 0);
-  setDay(snap.day || 1);
-};
     const onJoin = (p) => {
       setPlayers((prev) =>
         prev.find((x) => x.id === p.id) ? prev : [...prev, p],
@@ -274,22 +291,96 @@ const onSnapshot = (snap) => {
       setTimer(d.timer);
       setDay(d.day);
       setVoteTally({});
+      // Reset discussion if phase changes
+      if (d.phase === "NIGHT") {
+        setDiscussionActive(false);
+        setDiscussionWaiting(false);
+        setSeatedIds([]);
+        setSubPhase("ROAMING");
+        setVotedIds([]);
+        setRevealData(null);
+      }
     };
     const onTick = (d) => {
       setTimer(d.timer);
       setPhase(d.phase);
       setDay(d.day);
+      if (d.subPhase) {
+        setSubPhase(d.subPhase);
+      }
     };
     const onVote = (d) => setVoteTally(d.tally || {});
-    // When a remote player pushes their DB-resolved username/role, update our list
     const onPlayerUpdated = (p) => {
       setPlayers((prev) =>
         prev.map((x) =>
-          x.id === p.id
-            ? { ...x, ...p }
-            : x,
+          x.id === p.id ? { ...x, ...p } : x,
         ),
       );
+    };
+
+    // ── Discussion socket handlers ─────────────────────────────────
+    const onDiscussionStart = (data) => {
+      console.log("[Discussion] STARTED", data);
+      setDiscussionActive(true);
+      setDiscussionWaiting(false);
+      setDiscussionPlayers(data.players || []);
+      setDiscussionMessages([]);  // fresh chat per discussion round
+      setSubPhase(data.subPhase || "DISCUSSION");
+      setVotedIds([]);
+      setRevealData(null);
+    };
+
+    const onDiscussionEnd = (data) => {
+      console.log("[Discussion] ENDED", data);
+      setDiscussionActive(false);
+      setDiscussionWaiting(false);
+      setSeatedIds([]);
+      setSubPhase("ROAMING");
+      setVotedIds([]);
+      setRevealData(null);
+    };
+
+    const onDiscussionReceive = (msg) => {
+      setDiscussionMessages((prev) => [...prev, msg]);
+    };
+
+    const onDiscussionSeatedUpdate = (data) => {
+      setSeatedIds(data.sittingIds || []);
+      // Build/update discussionPlayers list from all players
+      if (data.players) {
+        const alivePlayers = data.players.filter((p) => p.isAlive !== false);
+        setDiscussionPlayers(alivePlayers);
+      }
+    };
+
+    const onDiscussionLocked = (data) => {
+      // Server-side lock message (redundant with local, but kept for reliability)
+      setLockedMessage(data.message || "Cannot leave during discussion!");
+      if (lockedMsgTimerRef.current) clearTimeout(lockedMsgTimerRef.current);
+      lockedMsgTimerRef.current = setTimeout(() => setLockedMessage(null), 3000);
+    };
+
+    const onDiscussionPhaseChange = (data) => {
+      console.log("[Discussion] SUB-PHASE CHANGE", data);
+      if (data.subPhase) setSubPhase(data.subPhase);
+      if (data.timer) setTimer(data.timer);
+    };
+
+    const onDiscussionVoteCastUpdate = (data) => {
+      console.log("[Discussion] VOTE CAST UPDATE", data);
+      if (data.votedIds) setVotedIds(data.votedIds);
+    };
+
+    const onDiscussionReveal = (data) => {
+      console.log("[Discussion] REVEAL", data);
+      setSubPhase(data.subPhase || "REVEAL");
+      if (data.timer) setTimer(data.timer);
+      setRevealData({
+        eliminatedPlayer: data.eliminatedPlayer,
+        mafiaCount: data.mafiaCount,
+        mafiaPresent: data.mafiaPresent,
+        tally: data.tally
+      });
     };
 
     sock.on("map-snapshot", onSnapshot);
@@ -301,6 +392,14 @@ const onSnapshot = (snap) => {
     sock.on("phase-tick", onTick);
     sock.on("vote-update", onVote);
     sock.on("player-updated", onPlayerUpdated);
+    sock.on("discussion-start", onDiscussionStart);
+    sock.on("discussion-end", onDiscussionEnd);
+    sock.on("discussion-receive", onDiscussionReceive);
+    sock.on("discussion-seated-update", onDiscussionSeatedUpdate);
+    sock.on("discussion-locked", onDiscussionLocked);
+    sock.on("discussion-phase-change", onDiscussionPhaseChange);
+    sock.on("discussion-vote-cast-update", onDiscussionVoteCastUpdate);
+    sock.on("discussion-reveal", onDiscussionReveal);
 
     return () => {
       sock.off("map-snapshot", onSnapshot);
@@ -312,6 +411,14 @@ const onSnapshot = (snap) => {
       sock.off("phase-tick", onTick);
       sock.off("vote-update", onVote);
       sock.off("player-updated", onPlayerUpdated);
+      sock.off("discussion-start", onDiscussionStart);
+      sock.off("discussion-end", onDiscussionEnd);
+      sock.off("discussion-receive", onDiscussionReceive);
+      sock.off("discussion-seated-update", onDiscussionSeatedUpdate);
+      sock.off("discussion-locked", onDiscussionLocked);
+      sock.off("discussion-phase-change", onDiscussionPhaseChange);
+      sock.off("discussion-vote-cast-update", onDiscussionVoteCastUpdate);
+      sock.off("discussion-reveal", onDiscussionReveal);
       disconnectSocket();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -338,7 +445,28 @@ const onSnapshot = (snap) => {
     });
   }, [myPos, myRot, roomId, isSitting]);
 
-
+  // ── Notify backend when local player sits / stands ────────────────
+  // This is the trigger that lets the server know all chairs are filled
+  // and should fire discussion-start.
+  // Also opens the DiscussionChatPage immediately in "waiting" state.
+  useEffect(() => {
+    const sock = getSocket();
+    if (isSitting) {
+      // Open the discussion page in waiting mode IMMEDIATELY when player sits
+      setDiscussionWaiting(true);
+      sock.emit("player-sit", roomId, { username: myName });
+      console.log("[GameMapPage] Emitted player-sit for", myName);
+    } else {
+      // Only clear waiting if discussion is not already active
+      if (!discussionActive) {
+        setDiscussionWaiting(false);
+      }
+      sock.emit("player-stand", roomId);
+      console.log("[GameMapPage] Emitted player-stand for", myName);
+    }
+  // myName is intentionally not a dependency — we only care about isSitting toggle
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSitting, roomId]);
 
   // Track pointer-lock state so HUD can show/hide the look-hint overlay
   useEffect(() => {
@@ -351,6 +479,9 @@ const onSnapshot = (snap) => {
 
   const castVote = (targetId) => {
     const sock = getSocket();
+    // Discussion voting (during discussion phase)
+    sock.emit("discussion-cast-vote", roomId, { targetId });
+    // Also emit legacy cast-vote for backward compat
     sock.emit("cast-vote", roomId, { targetId });
     setChat((c) => [
       ...c,
@@ -361,6 +492,22 @@ const onSnapshot = (snap) => {
       },
     ]);
   };
+
+  // ── Send discussion message ──────────────────────────────────────
+  const sendDiscussionMessage = useCallback((text) => {
+    const sock = getSocket();
+    const msg = {
+      sender: myName,
+      text,
+      color: myColor,
+      id: sock.id,
+      ts: Date.now(),
+    };
+    // Optimistic: add immediately to local state
+    setDiscussionMessages((prev) => [...prev, msg]);
+    // Emit to server — server relays to others
+    sock.emit("discussion-send", roomId, msg);
+  }, [myName, myColor, roomId]);
 
   // Timer mm:ss formatter
   const mmss = useMemo(() => {
@@ -374,6 +521,19 @@ const onSnapshot = (snap) => {
   const meta = ROLE_META[myRole] || ROLE_META.villager;
   const aliveCount = (isAlive ? 1 : 0) + players.filter((p) => p.isAlive !== false).length;
   const totalPlayers = dbTotalPlayers;
+  const hideHUD = discussionActive || discussionWaiting;
+
+  // ── Voice chat (WebRTC) ──────────────────────────────────────────
+  // Active only while the discussion overlay is open AND this player is seated.
+  // useVoiceChat is called unconditionally (Rules of Hooks) and self-manages
+  // start/stop internally based on the isActive flag.
+  const voiceActive = (discussionActive || discussionWaiting) && isSitting;
+  const voice = useVoiceChat({
+    socket: getSocket(),
+    roomId,
+    myId,
+    isActive: voiceActive,
+  });
 
   return (
     <div
@@ -402,9 +562,37 @@ const onSnapshot = (snap) => {
         buildings={BUILDINGS}
         isSitting={isSitting}
         setIsSitting={setIsSitting}
+        discussionActive={discussionActive}
       />
 
-      {/* ── Position debug overlay (bottom-left) ── */}
+      {/* ── Discussion Chat Page Overlay ──────────────────────────────
+           Opens immediately when the local player sits at the table.
+           Shows "waiting" state until all players are seated, then
+           transitions to full discussion / voting / reveal flow.      */}
+      <DiscussionChatPage
+        isOpen={discussionActive}
+        isWaiting={discussionWaiting && !discussionActive}
+        discussionPlayers={discussionPlayers}
+        seatedIds={seatedIds}
+        messages={discussionMessages}
+        onSend={sendDiscussionMessage}
+        myId={myId}
+        myName={myName}
+        myColor={myColor}
+        myRole={myRole}
+        timer={timer}
+        day={day}
+        lockedMessage={lockedMessage}
+        subPhase={subPhase}
+        votedIds={votedIds}
+        revealData={revealData}
+        onCastVote={castVote}
+        voiceProps={voice}
+      />
+
+      {!hideHUD && (
+        <>
+          {/* ── Position debug overlay (bottom-left) ── */}
       <div
         style={{
           position: 'absolute',
@@ -937,6 +1125,8 @@ const onSnapshot = (snap) => {
           onClose={() => setShowVote(false)}
           myId={myId}
         />
+      )}
+        </>
       )}
 
       {/* Controls hint */}

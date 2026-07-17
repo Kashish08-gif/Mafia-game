@@ -48,6 +48,7 @@ const GameCanvasOptimized = memo(function GameCanvasOptimized({
   buildings,
   isSitting,
   setIsSitting,
+  discussionActive,
 }) {
   const canvasRef = useRef(null);
 
@@ -75,6 +76,7 @@ const GameCanvasOptimized = memo(function GameCanvasOptimized({
         buildings={buildings}
         isSitting={isSitting}
         setIsSitting={setIsSitting}
+        discussionActive={discussionActive}
       />
     </Canvas>
   );

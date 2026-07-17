@@ -167,6 +167,7 @@ export default function PlayerAvatar({
   isAlive  = true,
   walking  = false,  // provided for remote players; local player detects via position delta
   sitting  = false,
+  discussionActive = false,
 }) {
   // ── Group refs ────────────────────────────────────────────────────
   const groupRef    = useRef();   // root: world position + yaw
@@ -341,66 +342,68 @@ export default function PlayerAvatar({
       </group>
 
       {/* Floating name tag */}
-      <Html position={[0, 2.6, 0]} center distanceFactor={10}>
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            pointerEvents: 'none',
-            userSelect: 'none',
-            fontFamily: 'Inter, system-ui, sans-serif',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {/* Role badge — only visible to me */}
-          {role && isMe && (
-            <span
-              style={{
-                background:
-                  role === 'mafia'  ? '#ff3344' :
-                  role === 'police' ? '#4488ff' :
-                  role === 'doctor' ? '#44cc88' : '#777777',
-                color: '#fff',
-                fontSize: '8px',
-                fontWeight: 800,
-                padding: '2px 6px',
-                borderRadius: '4px',
-                marginBottom: '3px',
-                letterSpacing: '0.08em',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.5)',
-                textTransform: 'uppercase',
-              }}
-            >
-              {role}
-            </span>
-          )}
-
-          {/* Username tag */}
-          <span
+      {!discussionActive && (
+        <Html position={[0, 2.6, 0]} center distanceFactor={10}>
+          <div
             style={{
-              background: 'rgba(0,0,0,0.78)',
-              color: isAlive ? '#ffffff' : '#aaaaaa',
-              border: isMe ? `1.5px solid ${color}` : '1px solid rgba(255,255,255,0.18)',
-              padding: '3px 9px',
-              borderRadius: '7px',
-              fontSize: '11px',
-              fontWeight: 700,
-              textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
-              boxShadow: isMe
-                ? `0 0 8px ${color}66, 0 4px 6px rgba(0,0,0,0.4)`
-                : '0 4px 6px rgba(0,0,0,0.4)',
               display: 'flex',
+              flexDirection: 'column',
               alignItems: 'center',
-              gap: '4px',
+              pointerEvents: 'none',
+              userSelect: 'none',
+              fontFamily: 'Inter, system-ui, sans-serif',
+              whiteSpace: 'nowrap',
             }}
           >
-            {!isAlive && '👻 '}
-            {name}
-            {isMe && ' (You)'}
-          </span>
-        </div>
-      </Html>
+            {/* Role badge — only visible to me */}
+            {role && isMe && (
+              <span
+                style={{
+                  background:
+                    role === 'mafia'  ? '#ff3344' :
+                    role === 'police' ? '#4488ff' :
+                    role === 'doctor' ? '#44cc88' : '#777777',
+                  color: '#fff',
+                  fontSize: '8px',
+                  fontWeight: 800,
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                  marginBottom: '3px',
+                  letterSpacing: '0.08em',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.5)',
+                  textTransform: 'uppercase',
+                }}
+              >
+                {role}
+              </span>
+            )}
+
+            {/* Username tag */}
+            <span
+              style={{
+                background: 'rgba(0,0,0,0.78)',
+                color: isAlive ? '#ffffff' : '#aaaaaa',
+                border: isMe ? `1.5px solid ${color}` : '1px solid rgba(255,255,255,0.18)',
+                padding: '3px 9px',
+                borderRadius: '7px',
+                fontSize: '11px',
+                fontWeight: 700,
+                textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
+                boxShadow: isMe
+                  ? `0 0 8px ${color}66, 0 4px 6px rgba(0,0,0,0.4)`
+                  : '0 4px 6px rgba(0,0,0,0.4)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+            >
+              {!isAlive && '👻 '}
+              {name}
+              {isMe && ' (You)'}
+            </span>
+          </div>
+        </Html>
+      )}
     </group>
   );
 }

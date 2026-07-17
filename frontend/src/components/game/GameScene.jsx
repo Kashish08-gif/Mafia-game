@@ -89,7 +89,7 @@ function BouncingArrow({ center }) {
 }
 
 // ── Discussion Corner Table Overlay ──────────────────────────────
-function DiscussionCorner({ phase }) {
+function DiscussionCorner({ phase, discussionActive = false }) {
   const [tx, , tz] = DISCUSSION_TABLE_POS;
 
   // Publish to global window so Player.jsx can read it
@@ -154,27 +154,29 @@ function DiscussionCorner({ phase }) {
       <BouncingArrow />
 
       {/* Floating badge above the discussion table */}
-      <Html position={[0, 3.8, 0]} center distanceFactor={12}>
-        <div style={{
-          background: 'linear-gradient(135deg, rgba(20,10,35,0.92) 0%, rgba(10,5,20,0.97) 100%)',
-          border: '1.5px solid #ffd700',
-          boxShadow: '0 0 15px rgba(255, 215, 0, 0.35)',
-          color: '#ffd700',
-          padding: '6px 14px',
-          borderRadius: '12px',
-          fontSize: '11px',
-          fontWeight: 800,
-          letterSpacing: '0.06em',
-          whiteSpace: 'nowrap',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          pointerEvents: 'none',
-          fontFamily: 'Inter, system-ui, sans-serif'
-        }}>
-          <span style={{ fontSize: '13px' }}>💬</span> DISCUSSION TABLE
-        </div>
-      </Html>
+      {!discussionActive && (
+        <Html position={[0, 3.8, 0]} center distanceFactor={12}>
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(20,10,35,0.92) 0%, rgba(10,5,20,0.97) 100%)',
+            border: '1.5px solid #ffd700',
+            boxShadow: '0 0 15px rgba(255, 215, 0, 0.35)',
+            color: '#ffd700',
+            padding: '6px 14px',
+            borderRadius: '12px',
+            fontSize: '11px',
+            fontWeight: 800,
+            letterSpacing: '0.06em',
+            whiteSpace: 'nowrap',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            pointerEvents: 'none',
+            fontFamily: 'Inter, system-ui, sans-serif'
+          }}>
+            <span style={{ fontSize: '13px' }}>💬</span> DISCUSSION TABLE
+          </div>
+        </Html>
+      )}
     </group>
   );
 }
@@ -285,6 +287,7 @@ export default function GameScene({
   buildings = [],
   isSitting = false,
   setIsSitting,
+  discussionActive = false,
 }) {
   const isNight = phase === 'NIGHT';
 
@@ -294,7 +297,11 @@ export default function GameScene({
       <GameSky phase={phase} />
 
       {/* Dynamic Environment preset: only load during DAY to avoid night-time wash-out */}
-      {!isNight && <Environment preset="city" background={false} />}
+      {!isNight && (
+        <Suspense fallback={null}>
+          <Environment files="/textures/potsdamer_platz_1k.hdr" background={false} />
+        </Suspense>
+      )}
 
       {/* Dynamic ambient and directional lights representing Sun & Moon */}
       <ambientLight
@@ -324,7 +331,7 @@ export default function GameScene({
       </Suspense>
 
       {/* Discussion Corner table glow & labels */}
-      <DiscussionCorner phase={phase} />
+      <DiscussionCorner phase={phase} discussionActive={discussionActive} />
 
       {/* Sitting interaction zones */}
       <DiscussionInteractionZone myPos={myPos} phase={phase} isSitting={isSitting} players={players} />
@@ -341,6 +348,7 @@ export default function GameScene({
         isSitting={isSitting}
         setIsSitting={setIsSitting}
         players={players}
+        discussionActive={discussionActive}
       />
 
       {/* Local player avatar */}
@@ -353,6 +361,7 @@ export default function GameScene({
         isMe
         isAlive={isAlive}
         sitting={isSitting}
+        discussionActive={discussionActive}
       />
 
       {/* Remote players */}
@@ -366,6 +375,7 @@ export default function GameScene({
           isAlive={p.isAlive !== false}
           walking={!!p.walking}
           sitting={!!p.sitting}
+          discussionActive={discussionActive}
         />
       ))}
     </>

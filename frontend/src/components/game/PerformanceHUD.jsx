@@ -38,20 +38,8 @@ export default function PerformanceHUD() {
   }, [autoRefresh]);
 
   if (!metrics) {
-  return (
-    <div
-      style={{
-        position: "fixed",
-        top: 70,
-        right: 16,
-        zIndex: 20,
-        color: "white",
-      }}
-    >
-      Waiting for Performance System...
-    </div>
-  );
-}
+    return null;
+  }
 
   const getStatusColor = (fps) => {
     if (fps >= 55) return '#00ff00';

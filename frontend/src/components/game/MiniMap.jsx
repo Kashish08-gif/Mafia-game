@@ -22,23 +22,13 @@ export default function MiniMap({
   const W = 260;
   const H = 260;
 
-  // Map world coordinate range [-45, 45] to UI pixel bounds [0, W] & [0, H]
-const WORLD_SIZE = 80;
+  // Map world coordinate range [-55, 55] to UI pixel bounds [0, W] & [0, H]
+  const WORLD_SIZE = 55;
 
-const worldToMap = (x, z) => ({
-  left: ((x + WORLD_SIZE) / (WORLD_SIZE * 2)) * W,
-  top: ((z + WORLD_SIZE) / (WORLD_SIZE * 2)) * H,
-});
-  const locations = [
-    { name: "COURTYARD", x: 0, z: 0 },
-    { name: "VIP", x: -20, z: 0 },
-    { name: "LOUNGE", x: 22, z: 10 },
-    { name: "KITCHEN", x: -30, z: 20 },
-    { name: "LIBRARY", x: -30, z: -20 },
-    { name: "STORAGE", x: 28, z: -18 },
-    { name: "BASEMENT", x: 0, z: 30 },
-    { name: "GARDEN", x: 0, z: -30 },
-  ];
+  const worldToMap = (x, z) => ({
+    left: ((x + WORLD_SIZE) / (WORLD_SIZE * 2)) * W,
+    top:  ((z + WORLD_SIZE) / (WORLD_SIZE * 2)) * H,
+  });
 
   return (
     <div
@@ -70,15 +60,16 @@ const worldToMap = (x, z) => ({
       {buildings.map((b) => {
         const { left, top } = worldToMap(b.pos[0], b.pos[1]);
         const [w, , d] = b.size;
+        const RANGE = WORLD_SIZE * 2; // 110
         return (
           <div
             key={b.id}
             style={{
               position: 'absolute',
-              left: left - ((w / 90) * W) / 2,
-              top: top - ((d / 90) * H) / 2,
-              width: (w / 90) * W,
-              height: (d / 90) * H,
+              left: left - ((w / RANGE) * W) / 2,
+              top: top - ((d / RANGE) * H) / 2,
+              width: (w / RANGE) * W,
+              height: (d / RANGE) * H,
               background: 'rgba(120,80,60,0.55)',
               border: `1px solid ${b.neon}77`,
               fontSize: 7,
@@ -108,28 +99,7 @@ const worldToMap = (x, z) => ({
           boxShadow: '0 0 8px #ffd700',
         }}
       />
-      {locations.map((room) => {
-        const { left, top } = worldToMap(room.x, room.z);
 
-        return (
-          <div
-            key={room.name}
-            style={{
-              position: "absolute",
-              left,
-              top,
-              transform: "translate(-50%, -50%)",
-              color: "#ffffff",
-              fontSize: 9,
-              fontWeight: 700,
-              textShadow: "0 0 5px black",
-              pointerEvents: "none",
-            }}
-          >
-            {room.name}
-          </div>
-        );
-      })}
 
       {/* Remote Players Dots */}
       {/* Remote Players */}
