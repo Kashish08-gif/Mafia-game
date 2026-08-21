@@ -1,6 +1,7 @@
 import cors from "cors";
 import express from "express";
 import dotenv from "dotenv";
+import inviteRoutes from "./routes/inviteRoutes.js";
 import profileRoute from "./routes/profileRoute.js";
 import leaderboardRoute from "./routes/LeaderboardRoute.js";
 dotenv.config();
@@ -12,6 +13,7 @@ import authRouter from "./routes/authRoute.js";
 import roomRouter from "./routes/roomRouter.js";
 import userRouter from "./routes/userRouter.js";
 import gameRouter from "./routes/gameRouter.js";
+
 
 import path from "path";
 import http from "http";
@@ -28,6 +30,7 @@ app.use("/api/profile", profileRoute);
 app.use("/api/leaderboard", leaderboardRoute);
 app.use("/api/auth", authRouter);
 app.use("/api/game", authMiddleware, gameRouter);
+app.use("/api/invite", inviteRoutes);
 
 app.get("/", (req, res) => {
   return res.status(200).json({

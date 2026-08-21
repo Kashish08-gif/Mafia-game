@@ -20,7 +20,6 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { Send, Smile } from 'lucide-react';
 import EmojiPicker from 'emoji-picker-react';
-import ErrorBoundary from './ErrorBoundary';
 
 export default function ChatBox({ messages = [], onSend, myColor = '#ffd700' }) {
   const [input, setInput]     = useState('');
@@ -116,76 +115,74 @@ export default function ChatBox({ messages = [], onSend, myColor = '#ffd700' }) 
               textAlign: 'center',
               margin: 'auto',
               fontStyle: 'italic',
-              }}
-            >
-              No messages yet…
-            </div>
-          )}
-
-          {messages.map((msg, i) => (
-            <div
-              key={i}
-              style={{
-                padding: msg.sender === 'System' ? '2px 0' : '6px 10px',
-                borderRadius: 8,
-                fontSize: 13,          // slightly larger so emojis render clearly
-                lineHeight: '1.5',
-                background:
-                  msg.sender === 'System'
-                    ? 'transparent'
-                    : 'rgba(255,255,255,0.04)',
-                color: msg.sender === 'System' ? '#5ad15a' : '#e8e8e8',
-                fontStyle: msg.sender === 'System' ? 'italic' : 'normal',
-                border:
-                  msg.sender === 'System'
-                    ? 'none'
-                    : '1px solid rgba(255,255,255,0.06)',
-                wordBreak: 'break-word',   // so long emoji strings don't overflow
-              }}
-            >
-              {msg.sender !== 'System' && (
-                <span
-                  style={{
-                    fontWeight: 800,
-                    color: msg.color || '#ffd700',
-                    marginRight: 5,
-                    fontSize: 11,
-                  }}
-                >
-                  {msg.sender}:
-                </span>
-              )}
-              {msg.text}
-            </div>
-          ))}
-
-          <div ref={bottomRef} />
-        </div>
-
-        {/* ── Emoji Picker — lives OUTSIDE the form to avoid accidental submit ── */}
-        {showEmoji && (
-          <div
-            ref={pickerWrapRef}
-            style={{
-              position: 'absolute',
-              bottom: 90,   // sits above the input row
-              left: 0,
-              zIndex: 9999,
             }}
           >
-            <ErrorBoundary>
-              <EmojiPicker
-                onEmojiClick={handleEmojiClick}
-                theme="dark"
-                autoFocusSearch={false}   // don't steal keyboard from the game
-                lazyLoadEmojis={true}
-                searchDisabled={false}
-                width={300}
-                height={380}
-              />
-            </ErrorBoundary>
+            No messages yet…
           </div>
         )}
+
+        {messages.map((msg, i) => (
+          <div
+            key={i}
+            style={{
+              padding: msg.sender === 'System' ? '2px 0' : '6px 10px',
+              borderRadius: 8,
+              fontSize: 13,          // slightly larger so emojis render clearly
+              lineHeight: '1.5',
+              background:
+                msg.sender === 'System'
+                  ? 'transparent'
+                  : 'rgba(255,255,255,0.04)',
+              color: msg.sender === 'System' ? '#5ad15a' : '#e8e8e8',
+              fontStyle: msg.sender === 'System' ? 'italic' : 'normal',
+              border:
+                msg.sender === 'System'
+                  ? 'none'
+                  : '1px solid rgba(255,255,255,0.06)',
+              wordBreak: 'break-word',   // so long emoji strings don't overflow
+            }}
+          >
+            {msg.sender !== 'System' && (
+              <span
+                style={{
+                  fontWeight: 800,
+                  color: msg.color || '#ffd700',
+                  marginRight: 5,
+                  fontSize: 11,
+                }}
+              >
+                {msg.sender}:
+              </span>
+            )}
+            {msg.text}
+          </div>
+        ))}
+
+        <div ref={bottomRef} />
+      </div>
+
+      {/* ── Emoji Picker — lives OUTSIDE the form to avoid accidental submit ── */}
+      {showEmoji && (
+        <div
+          ref={pickerWrapRef}
+          style={{
+            position: 'absolute',
+            bottom: 90,   // sits above the input row
+            left: 0,
+            zIndex: 9999,
+          }}
+        >
+          <EmojiPicker
+            onEmojiClick={handleEmojiClick}
+            theme="dark"
+            autoFocusSearch={false}   // don't steal keyboard from the game
+            lazyLoadEmojis={true}
+            searchDisabled={false}
+            width={300}
+            height={380}
+          />
+        </div>
+      )}
 
       {/* Input row */}
       <form
@@ -200,7 +197,7 @@ export default function ChatBox({ messages = [], onSend, myColor = '#ffd700' }) 
           style={{
             flexShrink: 0,
             background: showEmoji
-              ? `${myColor}33`
+              ? `${myColor}33` 
               : 'rgba(255,255,255,0.07)',
             border: `1.5px solid ${showEmoji ? myColor : 'rgba(255,255,255,0.12)'}`,
             borderRadius: 10,
