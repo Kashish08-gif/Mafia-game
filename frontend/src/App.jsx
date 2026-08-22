@@ -14,12 +14,15 @@ import AuthPage from "./pages/AuthPage";
 import LoadingScreen from "./pages/LoadingScreen";
 import RoleRevealPage from "./pages/RoleRevealPage";
 import GameMapPage from "./pages/GameMapPage";
+import InvitePage from "./pages/InvitePage";
+
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<AuthPage />} />
+        <Route path="/invite/:token" element={<InvitePage />} />
         <Route path="/loading/:roomId" element={<LoadingScreen />} />
         <Route path="/role-reveal/:roomId" element={<RoleRevealPage />} />
         <Route path="/game/:roomId" element={<GameMapPage />} />
