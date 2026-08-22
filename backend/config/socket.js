@@ -15,6 +15,28 @@ export const initializeSocket = (server) => {
     console.log("New client connected to socket:", socket.id);
     let currentRoomId = null;
 
+    // Register user to personal channel for direct in-app lobby invites
+    socket.on("register-user", (userId) => {
+      if (userId) {
+        socket.join(`user_${userId}`);
+        console.log(`[Socket] Socket ${socket.id} registered to channel user_${userId}`);
+      }
+    });
+
+    // Direct in-app lobby invitation handler (no link needed!)
+    socket.on("send-lobby-invite", ({ targetUserId, roomId, roomName, hostName, hostId }) => {
+      if (targetUserId && roomId) {
+        io.to(`user_${targetUserId}`).emit("receive-lobby-invite", {
+          roomId,
+          roomName: roomName || "Mafia Mansion",
+          hostName: hostName || "A Friend",
+          hostId,
+          timestamp: Date.now(),
+        });
+        console.log(`[Socket] Direct lobby invite sent from ${hostName} to user_${targetUserId} for room ${roomId}`);
+      }
+    });
+
     socket.on("join-map", async (roomId, userData) => {
       currentRoomId = roomId;
       socket.join(roomId);

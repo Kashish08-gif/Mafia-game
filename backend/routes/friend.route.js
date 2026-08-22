@@ -120,7 +120,7 @@ router.get("/list", async (req, res) => {
   try {
     const user = await User.findById(
       req.user._id
-    ).populate("friends", "username");
+    ).populate("friends", "username avatar trophies totalGamesWon");
 
     res.json(user.friends);
   } catch (error) {
@@ -129,4 +129,78 @@ router.get("/list", async (req, res) => {
     });
   }
 });
+
+router.get("/all-users", async (req, res) => {
+  try {
+    const currentUserId = req.user._id.toString();
+    const searchQuery = req.query.search || "";
+
+    const currentUser = await User.findById(currentUserId);
+    if (!currentUser) {
+      return res.status(404).json({ message: "Current user not found" });
+    }
+
+    const myFriendsSet = new Set(
+      (currentUser.friends || []).map((id) => id.toString())
+    );
+
+    // Get all pending requests involving current user
+    const pendingRequests = await FriendRequest.find({
+      $or: [
+        { sender: currentUserId, status: "pending" },
+        { receiver: currentUserId, status: "pending" },
+      ],
+    });
+
+    const pendingSentSet = new Set();
+    const pendingReceivedSet = new Set();
+
+    pendingRequests.forEach((reqItem) => {
+      if (reqItem.sender.toString() === currentUserId) {
+        pendingSentSet.add(reqItem.receiver.toString());
+      } else {
+        pendingReceivedSet.add(reqItem.sender.toString());
+      }
+    });
+
+    // Build query — exclude self, optionally filter by search
+    const userQuery = { _id: { $ne: currentUser._id } };
+    if (searchQuery.trim()) {
+      userQuery.username = { $regex: searchQuery.trim(), $options: "i" };
+    }
+
+    const allUsers = await User.find(userQuery)
+      .select("username avatar trophies totalGamesWon totalGamesPlayed")
+      .limit(100)
+      .lean();
+
+    const formattedUsers = allUsers.map((u) => {
+      const uId = u._id.toString();
+      let status = "none";
+
+      if (myFriendsSet.has(uId)) {
+        status = "friend";
+      } else if (pendingSentSet.has(uId)) {
+        status = "pending_sent";
+      } else if (pendingReceivedSet.has(uId)) {
+        status = "pending_received";
+      }
+
+      return {
+        _id: u._id,
+        username: u.username,
+        avatar: u.avatar || "🎭",
+        trophies: u.trophies || 0,
+        totalGamesWon: u.totalGamesWon || 0,
+        status,
+      };
+    });
+
+    res.json(formattedUsers);
+  } catch (error) {
+    console.error("Error fetching all users:", error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
 export default router;
