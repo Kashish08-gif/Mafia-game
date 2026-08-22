@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Sparkles, LogIn, AlertTriangle, ShieldCheck, MapPin, X, Users, RefreshCw } from 'lucide-react';
-import { getRooms, joinRoom } from '../services/roomService.js';
+import { getRooms, joinRoom } from '../../services/roomService.js';
 import { useNavigate } from 'react-router-dom';
 
 const MAPS = [
@@ -13,7 +13,6 @@ const MAPS = [
   { id: 'casino', name: 'Casino Royale', desc: 'Underground high-stakes gambling.', icon: '🎰' },
   { id: 'mansion', name: 'Old Mansion', desc: 'Classic gothic dark headquarters.', icon: '🏛️' },
 ];
-
 
 export default function JoinRoomPage() {
   const [rooms, setRooms] = useState([]);
@@ -27,7 +26,6 @@ export default function JoinRoomPage() {
   const [joiningRoomId, setJoiningRoomId] = useState(null);
   const navigate = useNavigate();
 
-
   const fetchRooms = useCallback(async () => {
     setIsLoading(true);
     setFetchError(null);
@@ -40,7 +38,6 @@ export default function JoinRoomPage() {
       const response = await getRooms(token, params);
       setRooms(response.data.rooms || []);
     } catch (err) {
-      // 404 = no rooms found — treat as empty list
       if (err?.response?.status === 404) {
         setRooms([]);
       } else {
@@ -55,17 +52,11 @@ export default function JoinRoomPage() {
     fetchRooms();
   }, [fetchRooms]);
 
-
-
-
-  // Quick Match trigger
   const handleQuickMatch = () => {
     setMatchingOverlay(true);
     setMatchedRoom(null);
 
-    // Simulate search spinner delay
     setTimeout(() => {
-      // Find nearest waiting room that is not full
       const available = rooms.filter(r => r.gameState === 'WAITING' && r.users?.length < r.totalPlayers);
       if (available.length > 0) {
         const bestRoom = [...available].sort((a, b) => (b.users?.length || 0) - (a.users?.length || 0))[0];
@@ -83,7 +74,6 @@ export default function JoinRoomPage() {
       const token = localStorage.getItem('token');
       const response = await joinRoom(token, room._id);
       const joinedRoom = response.data.room;
-      // Navigate to lobby using the room's MongoDB _id
       navigate(`/lobby/${joinedRoom._id}`);
     } catch (err) {
       const message = err?.response?.data?.error || 'Failed to join room. Please try again.';
@@ -93,7 +83,6 @@ export default function JoinRoomPage() {
       setJoiningRoomId(null);
     }
   };
-
 
   return (
     <div className="page-scroll" style={{
@@ -321,7 +310,6 @@ export default function JoinRoomPage() {
                         </div>
                       </div>
 
-                      {/* Inline error for this specific room */}
                       {thisRoomError && (
                         <div style={{
                           fontSize: 11.5, color: '#ff6677',
@@ -371,7 +359,6 @@ export default function JoinRoomPage() {
                 alignItems: 'center', position: 'relative',
               }}
             >
-              {/* Close scanner */}
               <button
                 onClick={() => setMatchingOverlay(false)}
                 style={{
@@ -385,7 +372,6 @@ export default function JoinRoomPage() {
 
               {!matchedRoom ? (
                 <>
-                  {/* Matching radar animation */}
                   <div style={{ position: 'relative', width: 90, height: 90, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <div style={{
                       position: 'absolute', inset: 0, borderRadius: '50%',

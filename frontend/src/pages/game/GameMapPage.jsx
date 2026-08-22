@@ -27,18 +27,18 @@ import {
   User,
   Swords,
 } from "lucide-react";
-import { getSocket, disconnectSocket } from "../services/socket.js";
-import { getRoomDetails } from "../services/roomService.js";
-import { BUILDINGS, FOUNTAIN_POS } from "../components/CasinoMap.jsx";
+import { getSocket, disconnectSocket } from "../../services/socket.js";
+import { getRoomDetails } from "../../services/roomService.js";
+import { BUILDINGS, FOUNTAIN_POS } from "../../components/CasinoMap.jsx";
 // Import modular game sub-components
-import GameCanvasOptimized from "../components/game/GameCanvasOptimized.jsx";
-import PlayerList from "../components/game/PlayerList.jsx";
-import ChatBox from "../components/game/ChatBox.jsx";
-import VotingPanel from "../components/game/VotingPanel.jsx";
-import MiniMap from "../components/game/MiniMap.jsx";
-import PerformanceHUD from "../components/game/PerformanceHUD.jsx";
-import DiscussionChatPage from "../components/game/DiscussionChatPage.jsx";
-import useVoiceChat from "../hooks/useVoiceChat.js";
+import GameCanvasOptimized from "../../components/game/GameCanvasOptimized.jsx";
+import PlayerList from "../../components/game/PlayerList.jsx";
+import ChatBox from "../../components/game/ChatBox.jsx";
+import VotingPanel from "../../components/game/VotingPanel.jsx";
+import MiniMap from "../../components/game/MiniMap.jsx";
+import PerformanceHUD from "../../components/game/PerformanceHUD.jsx";
+import DiscussionChatPage from "../../components/game/DiscussionChatPage.jsx";
+import useVoiceChat from "../../hooks/useVoiceChat.js";
 
 // ── role meta ──────────────────────────────────────────────
 const ROLE_META = {

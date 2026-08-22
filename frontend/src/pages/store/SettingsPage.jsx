@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Volume2, VolumeX, LogOut, Check, Sliders, ShieldAlert, Sparkles, Terminal, Activity } from 'lucide-react';
-import AudioManager from '../services/audio';
+import AudioManager from '../../services/audio';
 
 const RANK_CONFIG = [
   { name: 'Bronze',  min:    0, max:  499, color: '#cd7f32', icon: '🥉' },

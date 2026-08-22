@@ -2,15 +2,12 @@ import { motion } from 'framer-motion';
 import { Trophy, HelpCircle, ArrowUp, Star, Award } from 'lucide-react';
 import { useState, useEffect } from "react";
 
-
-
 const TIERS = [
   { name: 'Diamond', range: '3,000+ 🏆', color: '#a8d8f0', icon: '💎' },
   { name: 'Gold', range: '1,500 - 2,999 🏆', color: '#ffd700', icon: '🥇' },
   { name: 'Silver', range: '500 - 1,499 🏆', color: '#aaa9ad', icon: '🥈' },
   { name: 'Bronze', range: '0 - 499 🏆', color: '#cd7f32', icon: '🥉' },
 ];
-
 
 export default function LeaderboardPage() {
   const [players, setPlayers] = useState([]);
@@ -19,7 +16,6 @@ export default function LeaderboardPage() {
 
   const getWinRate = (player) => {
     if (!player?.totalGamesPlayed) return 0;
-
     return Math.round(
       (player.totalGamesWon / player.totalGamesPlayed) * 100
     );
@@ -39,11 +35,9 @@ export default function LeaderboardPage() {
       .then((res) => res.json())
       .then((data) => {
         setPlayers(data);
-
         const loggedInUser = data.find(
           (p) => p._id === userId
         );
-
         setCurrentUser(loggedInUser);
       })
       .catch(console.error);
@@ -165,7 +159,6 @@ export default function LeaderboardPage() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {players.map((p, index) => {
-              console.log(p.username, p.avatar);
               const isSelf = p._id === selfPlayer?._id;
               const rankColor =
                 index === 0

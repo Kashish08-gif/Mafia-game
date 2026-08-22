@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, Sparkles, MapPin, Eye, EyeOff, Users, Play, Link, Copy, Check } from 'lucide-react';
-import { createRoom } from '../services/roomService.js';
+import { Shield, Sparkles, MapPin, Eye, EyeOff, Users, Play, Check, Send } from 'lucide-react';
+import { createRoom } from '../../services/roomService.js';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import socket from '../../services/socket.js';
 
 const MAPS = [
   { id: 'city', name: 'City Nights', desc: 'Neon-lit streets, dark alleys, urban crime.', icon: '🏙️', color: '#ff66b2' },
@@ -13,11 +15,6 @@ const MAPS = [
   { id: 'mansion', name: 'Old Mansion', desc: 'Classic gothic mafia headquarters.', icon: '🏛️', color: '#ff4455' },
 ];
 
-const MOCK_ONLINE_FRIENDS = [
-  { id: 1, name: 'GhostRider', level: 12 },
-  { id: 2, name: 'ViperEye', level: 9 },
-];
-
 export default function CreateRoomPage() {
   const [roomName, setRoomName] = useState('Shadow\'s Mansion');
   const [maxPlayers, setMaxPlayers] = useState(8);
@@ -25,22 +22,56 @@ export default function CreateRoomPage() {
   const [gameMode, setGameMode] = useState('Classic'); // 'Classic' | 'Quick' | 'Custom'
   const [selectedMap, setSelectedMap] = useState('mansion');
   const [invitedFriends, setInvitedFriends] = useState({}); // { id: boolean }
-  const [copiedLink, setCopiedLink] = useState(false);
+  const [realFriends, setRealFriends] = useState([]);
   const [createdRoomId, setCreatedRoomId] = useState(null);       // roomCode (display)
   const [createdRoomMongoId, setCreatedRoomMongoId] = useState(null); // MongoDB _id (navigation)
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const navigate = useNavigate();
-  const inviteLink = `https://mafia-mansion.com/join/room-${createdRoomId || '9482'}`;
+  const [notification, setNotification] = useState(null);
 
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(inviteLink);
-    setCopiedLink(true);
-    setTimeout(() => setCopiedLink(false), 2000);
+  const navigate = useNavigate();
+  const token = localStorage.getItem("token");
+
+  // Load real friends list from DB
+  useEffect(() => {
+    async function loadFriends() {
+      try {
+        const res = await axios.get("http://localhost:5000/api/friends/list", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setRealFriends(res.data || []);
+      } catch (err) {
+        console.error("Error fetching friends:", err);
+      }
+    }
+    loadFriends();
+  }, [token]);
+
+  const showToast = (msg) => {
+    setNotification(msg);
+    setTimeout(() => setNotification(null), 3000);
   };
 
-  const toggleInviteFriend = (id) => {
-    setInvitedFriends(prev => ({ ...prev, [id]: !prev[id] }));
+  const handleInviteFriendDirect = (friend) => {
+    if (!createdRoomMongoId) {
+      showToast("Please create the lobby first!");
+      return;
+    }
+
+    const currentUserId = localStorage.getItem("userId");
+    const currentUsername = localStorage.getItem("username") || "Host";
+
+    // Send direct real-time in-app socket invite
+    socket.emit("send-lobby-invite", {
+      targetUserId: friend._id,
+      roomId: createdRoomMongoId,
+      roomName: roomName,
+      hostName: currentUsername,
+      hostId: currentUserId,
+    });
+
+    setInvitedFriends(prev => ({ ...prev, [friend._id]: true }));
+    showToast(`In-game invite sent to ${friend.username}!`);
   };
 
   const handleCreateRoom = async (e) => {
@@ -49,8 +80,6 @@ export default function CreateRoomPage() {
     setIsLoading(true);
 
     try {
-      const token = localStorage.getItem("token");
-
       // Map gameMode to backend contractMode enum value
       const contractModeMap = { Classic: 'classic', Quick: 'quick', Custom: 'custom' };
 
@@ -69,6 +98,7 @@ export default function CreateRoomPage() {
       if (response.data.success) {
         setCreatedRoomId(roomCode);
         setCreatedRoomMongoId(response.data.room._id);
+        showToast("Lobby created! You can now invite your allies below.");
       }
     } catch (err) {
       const message = err?.response?.data?.error || 'Failed to create room. Please try again.';
@@ -78,8 +108,6 @@ export default function CreateRoomPage() {
     }
   };
 
-
-
   return (
     <div className="page-scroll" style={{
       width: '100%', height: '100%',
@@ -87,6 +115,26 @@ export default function CreateRoomPage() {
       color: '#fff',
       display: 'flex', flexDirection: 'column', gap: 24,
     }}>
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {notification && (
+          <motion.div
+            initial={{ opacity: 0, y: -50, x: '-50%' }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -50 }}
+            style={{
+              position: 'fixed', top: 90, left: '50%', transform: 'translateX(-50%)',
+              zIndex: 100, background: 'rgba(200,20,40,0.95)', color: '#fff',
+              padding: '10px 24px', borderRadius: 8, fontWeight: 700, fontSize: 13,
+              boxShadow: '0 0 20px rgba(255,20,40,0.5)', border: '1px solid #ff4444',
+              fontFamily: 'var(--font-display)', letterSpacing: '0.05em',
+            }}
+          >
+            {notification}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Page Title */}
       <motion.div
         initial={{ y: -20, opacity: 0 }}
@@ -96,7 +144,9 @@ export default function CreateRoomPage() {
         <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, letterSpacing: '0.12em', color: '#ff4455' }}>
           CREATE CONTRACT LOBBY
         </h1>
-        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Configure your environment parameters and recruit your squad</span>
+        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+          Configure your environment parameters and invite your added allies directly
+        </span>
       </motion.div>
 
       {/* Main Grid: Left Settings, Right Map Picker */}
@@ -200,7 +250,7 @@ export default function CreateRoomPage() {
                       {isPublic ? 'PUBLIC LOBBY' : 'PRIVATE MEETING'}
                     </span>
                     <span style={{ fontSize: 9.5, color: 'var(--text-muted)' }}>
-                      {isPublic ? 'Lobby is visible in the browser listings.' : 'Invite-only. Players need link or request.'}
+                      {isPublic ? 'Lobby is visible in browser listings.' : 'Invite-only. Send direct in-app invites to friends.'}
                     </span>
                   </div>
                 </div>
@@ -212,37 +262,6 @@ export default function CreateRoomPage() {
                   <div className="toggle-thumb" />
                 </div>
               </div>
-
-              {/* Private Invitation options */}
-              <AnimatePresence>
-                {!isPublic && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: 10 }}
-                  >
-                    <label style={{ fontSize: 10, fontWeight: 700, color: '#ff3344', letterSpacing: '0.06em', marginTop: 4 }}>
-                      RECRUIT ALLIES IN-GAME
-                    </label>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      {MOCK_ONLINE_FRIENDS.map(f => (
-                        <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.01)', padding: 10, borderRadius: 6 }}>
-                          <span style={{ fontSize: 12.5, fontWeight: 600 }}>{f.name} (LVL {f.level})</span>
-                          <button
-                            type="button"
-                            onClick={() => toggleInviteFriend(f.id)}
-                            className="btn-secondary"
-                            style={{ padding: '4px 10px', fontSize: 10, borderColor: invitedFriends[f.id] ? '#5ad15a' : 'rgba(255,255,255,0.1)' }}
-                          >
-                            {invitedFriends[f.id] ? '✓ INVITED' : 'INVITE'}
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
 
               {/* Error Message */}
               {error && (
@@ -258,7 +277,6 @@ export default function CreateRoomPage() {
 
               {/* Create Button */}
               <button
-                onClick={handleCreateRoom}
                 type="submit"
                 disabled={isLoading}
                 className="btn-primary"
@@ -293,21 +311,46 @@ export default function CreateRoomPage() {
                 </p>
               </div>
 
-              {/* Link Box */}
-              <div style={{ width: '100%', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <span style={{ fontSize: 10, color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' }}>INVITATION LINK</span>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: 'rgba(0,0,0,0.3)', padding: 8, borderRadius: 6, width: '100%' }}>
-                  <Link size={14} color="#ff3344" style={{ flexShrink: 0 }} />
-                  <span style={{ fontSize: 11.5, color: '#ddd', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, textAlign: 'left' }}>
-                    {inviteLink}
+              {/* Real Friends Direct Invite Box */}
+              <div style={{ width: '100%', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <span style={{ fontSize: 10, color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'left' }}>
+                  RECRUIT ADDED ALLIES IN-GAME
+                </span>
+                
+                {realFriends.length === 0 ? (
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)', padding: '10px 0', display: 'block' }}>
+                    No friends added yet. Add players from Social Hub to invite them directly!
                   </span>
-                  <button
-                    onClick={handleCopyLink}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: copiedLink ? '#5ad15a' : '#aaa' }}
-                  >
-                    {copiedLink ? <Check size={16} /> : <Copy size={16} />}
-                  </button>
-                </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 180, overflowY: 'auto' }}>
+                    {realFriends.map(friend => (
+                      <div key={friend._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.3)', padding: '8px 12px', borderRadius: 6 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          {(() => {
+                            const src = friend.avatar;
+                            const isUrl = src && (src.startsWith('http') || src.startsWith('/') || src.startsWith('data:'));
+                            return isUrl
+                              ? <img src={src} alt="avatar" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }} />
+                              : <span style={{ fontSize: 16 }}>{src || '🎭'}</span>;
+                          })()}
+                          <span style={{ fontSize: 12.5, fontWeight: 600 }}>{friend.username}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleInviteFriendDirect(friend)}
+                          className="btn-secondary"
+                          style={{
+                            padding: '4px 10px', fontSize: 10, gap: 4,
+                            borderColor: invitedFriends[friend._id] ? '#5ad15a' : 'rgba(255,50,70,0.3)',
+                            color: invitedFriends[friend._id] ? '#5ad15a' : '#fff'
+                          }}
+                        >
+                          {invitedFriends[friend._id] ? '✓ SENT' : <><Send size={11} /> INVITE</>}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div style={{ display: 'flex', gap: 12, width: '100%', marginTop: 8 }}>

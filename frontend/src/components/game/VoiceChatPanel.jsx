@@ -362,8 +362,17 @@ export default function VoiceChatPanel({
         >
           {players.map((player) => {
             const isMe        = player.id === myId;
-            const isSpeaking  = activeSpeakers.has(isMe ? myId : player.id);
-            const isConnected = isMe || peersReady.has(player.id);
+            const targetId    = isMe ? myId : player.id;
+            const isSpeaking  = activeSpeakers instanceof Set
+              ? activeSpeakers.has(targetId)
+              : Array.isArray(activeSpeakers)
+              ? activeSpeakers.includes(targetId)
+              : false;
+            const isConnected = isMe || (peersReady instanceof Set
+              ? peersReady.has(player.id)
+              : Array.isArray(peersReady)
+              ? peersReady.includes(player.id)
+              : false);
 
             return (
               <VoicePlayerCard

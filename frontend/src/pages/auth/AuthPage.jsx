@@ -4,9 +4,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   signIn as apiSignIn,
   signUp as apiSignUp,
-} from "../services/authService.js";
-import { useNavigate } from "react-router-dom";
-import AudioManager from "../services/audio";
+} from "../../services/authService.js";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
+import AudioManager from "../../services/audio";
 /* ─────────────────────────────────────────────────────
    GLOBAL STYLES
 ───────────────────────────────────────────────────── */
@@ -498,6 +498,10 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const redirectTo = location.state?.from || searchParams.get("redirect") || "/dashboard";
+
   /* Random lamp flicker */
   useEffect(() => {
     const t = setInterval(() => {
@@ -544,7 +548,7 @@ export default function AuthPage() {
           console.error("Failed to decode token", e);
         }
 
-        navigate("/dashboard");
+        navigate(redirectTo);
       } else {
         await apiSignUp(form.username, form.email, form.password, form.confirm);
         alert("Account created! Please sign in.");
@@ -798,16 +802,7 @@ export default function AuthPage() {
                         border: "none",
                         color: "#7a2222",
                         cursor: "pointer",
-                        padding: 0,
-                        display: "flex",
-                        alignItems: "center",
-                        opacity: 0.8,
-                        transition: "opacity 0.2s",
                       }}
-                      onMouseEnter={(e) => (e.currentTarget.style.opacity = 1)}
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.opacity = 0.8)
-                      }
                     >
                       {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
                     </button>
@@ -839,18 +834,7 @@ export default function AuthPage() {
                             border: "none",
                             color: "#7a2222",
                             cursor: "pointer",
-                            padding: 0,
-                            display: "flex",
-                            alignItems: "center",
-                            opacity: 0.8,
-                            transition: "opacity 0.2s",
                           }}
-                          onMouseEnter={(e) =>
-                            (e.currentTarget.style.opacity = 1)
-                          }
-                          onMouseLeave={(e) =>
-                            (e.currentTarget.style.opacity = 0.8)
-                          }
                         >
                           {showConf ? <EyeOff size={15} /> : <Eye size={15} />}
                         </button>
@@ -858,84 +842,53 @@ export default function AuthPage() {
                     />
                   </motion.div>
                 )}
+
+                {/* Error Banner */}
+                {error && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    style={{
+                      padding: "8px 12px",
+                      marginBottom: 10,
+                      background: "rgba(180,10,10,0.22)",
+                      border: "1px solid rgba(220,20,20,0.6)",
+                      borderRadius: 3,
+                      color: "#ff8888",
+                      fontSize: 11,
+                      letterSpacing: "0.04em",
+                      fontFamily: "'Special Elite', monospace",
+                    }}
+                  >
+                    {error}
+                  </motion.div>
+                )}
+
+                {/* Submit button */}
+                <SignInBtn onClick={handleSubmit}>
+                  {loading
+                    ? "WAIT..."
+                    : mode === "login"
+                      ? "ENTER REALM"
+                      : "JOIN FAMILY"}
+                </SignInBtn>
               </motion.div>
             </AnimatePresence>
 
-            {error && (
-              <p
-                style={{
-                  color: "#ff4444",
-                  fontSize: 12,
-                  fontFamily: "'Special Elite', monospace",
-                  letterSpacing: "0.05em",
-                  margin: "0 0 8px",
-                  textAlign: "center",
+            {/* Toggle Mode Link */}
+            <div style={{ marginTop: 14, textAlign: "center" }}>
+              <CreateAccountBtn
+                onClick={() => {
+                  setError("");
+                  resetForm();
+                  setMode((m) => (m === "login" ? "register" : "login"));
                 }}
               >
-                {error}
-              </p>
-            )}
-
-            <SignInBtn onClick={handleSubmit}>
-              {loading
-                ? "PLEASE WAIT..."
-                : mode === "login"
-                  ? "SIGN IN"
-                  : "CREATE ACCOUNT"}
-            </SignInBtn>
-
-            {/* OR separator */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                margin: "14px 0 10px",
-              }}
-            >
-              <div
-                style={{
-                  flex: 1,
-                  height: 1,
-                  background:
-                    "linear-gradient(90deg, transparent, rgba(140, 10, 10, 0.45))",
-                }}
-              />
-              <span
-                style={{
-                  padding: "0 12px",
-                  fontSize: 10,
-                  color: "rgba(140, 20, 20, 0.8)",
-                  fontFamily: "'Special Elite', monospace",
-                  letterSpacing: "0.22em",
-                  fontWeight: "bold",
-                  textShadow: "0 0 4px rgba(100, 0, 0, 0.5)",
-                }}
-              >
-                OR
-              </span>
-              <div
-                style={{
-                  flex: 1,
-                  height: 1,
-                  background:
-                    "linear-gradient(270deg, transparent, rgba(140, 10, 10, 0.45))",
-                }}
-              />
+                {mode === "login"
+                  ? "CREATE ACCOUNT"
+                  : "ALREADY A MEMBER?  SIGN IN"}
+              </CreateAccountBtn>
             </div>
-
-            {/* Secondary — switch mode */}
-            <CreateAccountBtn
-              onClick={() => {
-                setMode((m) => (m === "login" ? "register" : "login"));
-                setShowPass(false);
-                setShowConf(false);
-                resetForm();
-              }}
-            >
-              {mode === "login"
-                ? "CREATE ACCOUNT"
-                : "ALREADY A MEMBER?  SIGN IN"}
-            </CreateAccountBtn>
           </div>
         </motion.div>
       </div>
