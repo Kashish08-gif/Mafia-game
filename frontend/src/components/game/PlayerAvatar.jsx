@@ -168,7 +168,9 @@ export default function PlayerAvatar({
   walking  = false,  // provided for remote players; local player detects via position delta
   sitting  = false,
   discussionActive = false,
+  phase    = 'DAY',
 }) {
+  const showNameTag = !discussionActive && phase === 'DAY';
   // ── Group refs ────────────────────────────────────────────────────
   const groupRef    = useRef();   // root: world position + yaw
   const bodyRef     = useRef();   // body bob layer (vertical only)
@@ -342,8 +344,8 @@ export default function PlayerAvatar({
       </group>
 
       {/* Floating name tag */}
-      {!discussionActive && (
-        <Html position={[0, 2.6, 0]} center distanceFactor={10}>
+      {showNameTag && (
+        <Html position={[0, 2.6, 0]} center distanceFactor={10} zIndexRange={[50, 0]}>
           <div
             style={{
               display: 'flex',

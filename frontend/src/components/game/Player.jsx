@@ -61,6 +61,7 @@ export default function Player({
   setIsSitting,
   players = [],
   discussionActive = false,
+  isAlive = true,
 }) {
   const { camera, gl } = useThree();
 
@@ -134,6 +135,7 @@ export default function Player({
   // ── Sit / stand handler (stored in a ref to avoid stale closures) ─
   const handleInteractRef = useRef();
   handleInteractRef.current = () => {
+    if (!isAlive || phase === 'NIGHT') return;
     if (isSitting) {
       // Block stand-up during active discussion
       if (discussionActive) {
@@ -309,10 +311,12 @@ export default function Player({
     const speed  = (sprint ? SPRINT_SPEED : WALK_SPEED) * delta;
 
     let dx = 0, dz = 0;
-    if (k['KeyW'] || k['ArrowUp'])    dz -= 1;
-    if (k['KeyS'] || k['ArrowDown'])  dz += 1;
-    if (k['KeyA'] || k['ArrowLeft'])  dx -= 1;
-    if (k['KeyD'] || k['ArrowRight']) dx += 1;
+    if (isAlive && phase !== 'NIGHT') {
+      if (k['KeyW'] || k['ArrowUp'])    dz -= 1;
+      if (k['KeyS'] || k['ArrowDown'])  dz += 1;
+      if (k['KeyA'] || k['ArrowLeft'])  dx -= 1;
+      if (k['KeyD'] || k['ArrowRight']) dx += 1;
+    }
 
     const moving = dx !== 0 || dz !== 0;
     const p = posRef.current;

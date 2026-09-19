@@ -41,7 +41,7 @@ export default function Loading3D() {
       </mesh>
 
       {/* HTML overlay label */}
-      <Html center position={[0, 2.4, 0]} distanceFactor={8}>
+      <Html center position={[0, 2.4, 0]} distanceFactor={8} zIndexRange={[50, 0]}>
         <div
           style={{
             fontFamily: 'Inter, system-ui, sans-serif',

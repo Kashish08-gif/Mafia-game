@@ -155,7 +155,7 @@ function DiscussionCorner({ phase, discussionActive = false }) {
 
       {/* Floating badge above the discussion table */}
       {!discussionActive && (
-        <Html position={[0, 3.8, 0]} center distanceFactor={12}>
+        <Html position={[0, 3.8, 0]} center distanceFactor={12} zIndexRange={[50, 0]}>
           <div style={{
             background: 'linear-gradient(135deg, rgba(20,10,35,0.92) 0%, rgba(10,5,20,0.97) 100%)',
             border: '1.5px solid #ffd700',
@@ -234,7 +234,7 @@ function DiscussionInteractionZone({ myPos, phase, isSitting, players = [] }) {
   if (!nearestChair) return null;
 
   return (
-    <Html position={[nearestChair.pos[0], 0.9, nearestChair.pos[2]]} center distanceFactor={10}>
+    <Html position={[nearestChair.pos[0], 0.9, nearestChair.pos[2]]} center distanceFactor={10} zIndexRange={[50, 0]}>
       <div style={{
         background: 'rgba(0, 0, 0, 0.85)',
         border: '1.5px solid #ffd700',
@@ -349,6 +349,7 @@ export default function GameScene({
         setIsSitting={setIsSitting}
         players={players}
         discussionActive={discussionActive}
+        isAlive={isAlive}
       />
 
       {/* Local player avatar */}
@@ -362,6 +363,7 @@ export default function GameScene({
         isAlive={isAlive}
         sitting={isSitting}
         discussionActive={discussionActive}
+        phase={phase}
       />
 
       {/* Remote players */}
@@ -376,6 +378,7 @@ export default function GameScene({
           walking={!!p.walking}
           sitting={!!p.sitting}
           discussionActive={discussionActive}
+          phase={phase}
         />
       ))}
     </>

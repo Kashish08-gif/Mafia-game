@@ -38,7 +38,11 @@ import VotingPanel from "../../components/game/VotingPanel.jsx";
 import MiniMap from "../../components/game/MiniMap.jsx";
 import PerformanceHUD from "../../components/game/PerformanceHUD.jsx";
 import DiscussionChatPage from "../../components/game/DiscussionChatPage.jsx";
+import NightPhasePanel from "../../components/game/NightPhasePanel.jsx";
+import MorningAnnouncement from "../../components/game/MorningAnnouncement.jsx";
+import GameOverScreen from "../../components/game/GameOverScreen.jsx";
 import useVoiceChat from "../../hooks/useVoiceChat.js";
+import useNightActions from "../../hooks/useNightActions.js";
 
 // ── role meta ──────────────────────────────────────────────
 const ROLE_META = {
@@ -154,6 +158,10 @@ export default function GameMapPage() {
   const [votedIds, setVotedIds] = useState([]);
   const [revealData, setRevealData] = useState(null);
 
+  // Ref that lets the socket onPhase handler call nightActions.resetNightState
+  // without creating a stale closure dependency on the hook output.
+  const nightResetRef = useRef(null);
+
   // Total players in the DB room, default to 5
   const [dbTotalPlayers, setDbTotalPlayers] = useState(5);
 
@@ -235,10 +243,13 @@ export default function GameMapPage() {
 
     // Emit join-map using the best available name at this point.
     // The name/role will be refreshed once the API fetch resolves.
+    // NOTE: myId here is the DB ObjectId decoded from the JWT — critical for
+    // night engine stat tracking and win-condition player lookup.
     sock.emit("join-map", roomId, {
       username: myName,
       color: myColor,
       role: myRole,
+      userId: myId,
       position: { x: myPos[0], y: 0, z: myPos[2] },
     });
     const onSnapshot = (snap) => {
@@ -291,7 +302,7 @@ export default function GameMapPage() {
       setTimer(d.timer);
       setDay(d.day);
       setVoteTally({});
-      // Reset discussion if phase changes
+      // Reset discussion whenever phase changes away from DAY sub-phases
       if (d.phase === "NIGHT") {
         setDiscussionActive(false);
         setDiscussionWaiting(false);
@@ -299,6 +310,18 @@ export default function GameMapPage() {
         setSubPhase("ROAMING");
         setVotedIds([]);
         setRevealData(null);
+        // Reset night action state via the hook utility (see below)
+        nightResetRef.current?.();
+      }
+      if (d.phase === "DAY") {
+        setDiscussionActive(false);
+        setDiscussionWaiting(false);
+        setSeatedIds([]);
+        setSubPhase("ROAMING");
+      }
+      if (d.phase === "GAME_OVER") {
+        setDiscussionActive(false);
+        setDiscussionWaiting(false);
       }
     };
     const onTick = (d) => {
@@ -535,6 +558,47 @@ export default function GameMapPage() {
     isActive: voiceActive,
   });
 
+  // ── Night Actions hook (all night socket logic lives here) ───────
+  const nightActions = useNightActions({
+    roomId,
+    myRole,
+    isAlive,
+    players,
+    setPlayers,
+    setPhase,
+    setTimer,
+    setDay,
+    setChat,
+  });
+
+  // Sync resetNightState into a ref so the onPhase socket handler
+  // (defined earlier in a useEffect) can call it without stale closures.
+  // This is safe because refs are mutated synchronously before every render.
+  nightResetRef.current = nightActions.resetNightState;
+
+  // Derived flags
+  const isNightPhase = phase === "NIGHT";
+  const isGameOver   = phase === "GAME_OVER";
+  // Block HUD + movement for dead players during night
+  const effectiveHideHUD = discussionActive || discussionWaiting || isNightPhase || isGameOver;
+
+  // Guard: dead players cannot send chat (day or night)
+  const sendChatGuarded = useCallback((text) => {
+    if (!isAlive) return; // silently block
+    const sock = getSocket();
+    sock.emit("send-chat", roomId, { sender: myName, text, color: myColor });
+    setChat((c) => [
+      ...c,
+      { sender: myName, text, color: myColor, isSelf: true, ts: Date.now() },
+    ]);
+  }, [isAlive, roomId, myName, myColor]);
+
+  // Navigate to dashboard after game over
+  const handleLeaveGame = useCallback(() => {
+    disconnectSocket();
+    navigate("/dashboard");
+  }, [navigate]);
+
   return (
     <div
       style={{
@@ -590,7 +654,53 @@ export default function GameMapPage() {
         voiceProps={voice}
       />
 
-      {!hideHUD && (
+      {/* ── Night Phase Overlay ─────────────────────────────────────
+           Full-screen role-specific action panel during NIGHT phase.
+           Rendered above everything else (z=200).                  */}
+      {isNightPhase && (
+        <NightPhasePanel
+          myRole={myRole}
+          myId={myId}
+          myName={myName}
+          myColor={myColor}
+          isAlive={isAlive}
+          players={players}
+          timer={timer}
+          day={day}
+          nightActionDone={nightActions.nightActionDone}
+          nightActionTarget={nightActions.nightActionTarget}
+          nightError={nightActions.nightError}
+          nightConfirmation={nightActions.nightConfirmation}
+          mafiaVoteTally={nightActions.mafiaVoteTally}
+          currentMafiaVotes={nightActions.currentMafiaVotes}
+          policeResult={nightActions.policeResult}
+          mafiaChatMessages={nightActions.mafiaChatMessages}
+          onAction={nightActions.emitNightAction}
+          onMafiaChat={nightActions.emitMafiaChat}
+        />
+      )}
+
+      {/* ── Morning Announcement ───────────────────────────────────
+           Shows after each Night resolves (kill / save / peaceful). */}
+      {nightActions.morningAnnouncement && (
+        <MorningAnnouncement
+          data={nightActions.morningAnnouncement}
+          onDismiss={nightActions.dismissMorningAnnouncement}
+        />
+      )}
+
+      {/* ── Game Over Screen ───────────────────────────────────────
+           Full-screen result overlay when a win condition triggers. */}
+      {(isGameOver || nightActions.gameOverData) && (
+        <GameOverScreen
+          data={nightActions.gameOverData}
+          myId={myId}
+          myRole={myRole}
+          onLeave={handleLeaveGame}
+        />
+      )}
+
+      {!effectiveHideHUD && (
         <>
           {/* ── Position debug overlay (bottom-left) ── */}
       <div
@@ -815,22 +925,22 @@ export default function GameMapPage() {
 
         {/* Chat box */}
         <div data-testid="hud-chat">
+          {/* Dead-player overlay pill above chat */}
+          {!isAlive && (
+            <div style={{
+              marginBottom: 6, padding: "5px 12px",
+              background: "rgba(255,51,68,0.12)",
+              border: "1px solid rgba(255,51,68,0.3)",
+              borderRadius: 8, fontSize: 11,
+              color: "#ff6677", fontWeight: 700,
+              textAlign: "center", letterSpacing: "0.05em",
+            }}>
+              💀 You are dead — chat is disabled
+            </div>
+          )}
           <ChatBox
             messages={chat}
-            onSend={(text) => {
-              // Optimistic: add own message immediately so it shows without waiting for echo
-              setChat((c) => [
-                ...c,
-                { sender: myName, text, color: myColor, ts: Date.now() },
-              ]);
-              const sock = getSocket();
-              sock.emit("send-chat", roomId, {
-                sender: myName,
-                text,
-                color: myColor,
-                ts: Date.now(),
-              });
-            }}
+            onSend={sendChatGuarded}
             myColor={myColor}
           />
         </div>
