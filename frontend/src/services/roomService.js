@@ -20,19 +20,42 @@ const getRoomDetails = (token, roomId) =>
     headers: { Authorization: `Bearer ${token}` },
   });
 
+const getRoomByCode = (roomCode) =>
+  api.get(`/invite/room/${roomCode}`);
+
 const joinRoom = (token, roomId) =>
-  api.post(`/room/rooms/${roomId}/join`, {}, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  api.post(
+    `/room/rooms/${roomId}/join`,
+    {},
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
 
 const leaveRoom = (token, roomId) =>
-  api.post(`/room/rooms/${roomId}/leave`, {}, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  api.post(
+    `/room/rooms/${roomId}/leave`,
+    {},
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
 
 const startGame = (token, roomId) =>
-  api.post(`/room/rooms/${roomId}/start`, {}, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  api.post(
+    `/room/rooms/${roomId}/start`,
+    {},
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
 
-export { createRoom, getRooms, getRoomDetails, joinRoom, leaveRoom, startGame };
+export {
+  createRoom,
+  getRooms,
+  getRoomDetails,
+  getRoomByCode,
+  joinRoom,
+  leaveRoom,
+  startGame,
+};

@@ -31,7 +31,9 @@ export default function CreateRoomPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
-  const inviteLink = `https://mafia-mansion.com/join/room-${createdRoomId || '9482'}`;
+  const inviteLink = createdRoomId
+  ? `${window.location.origin}/invite/${createdRoomId}`
+  : "";
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(inviteLink);
@@ -298,9 +300,22 @@ export default function CreateRoomPage() {
                 <span style={{ fontSize: 10, color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' }}>INVITATION LINK</span>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: 'rgba(0,0,0,0.3)', padding: 8, borderRadius: 6, width: '100%' }}>
                   <Link size={14} color="#ff3344" style={{ flexShrink: 0 }} />
-                  <span style={{ fontSize: 11.5, color: '#ddd', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, textAlign: 'left' }}>
+                  <a
+                    href={inviteLink}
+                    style={{
+                      fontSize: 11.5,
+                      color: '#ddd',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      flex: 1,
+                      textAlign: 'left',
+                      textDecoration: 'none',
+                      cursor: 'pointer',
+                    }}
+                  >
                     {inviteLink}
-                  </span>
+                  </a>
                   <button
                     onClick={handleCopyLink}
                     style={{ background: 'none', border: 'none', cursor: 'pointer', color: copiedLink ? '#5ad15a' : '#aaa' }}

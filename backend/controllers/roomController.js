@@ -344,3 +344,33 @@ export const startGame = async (req, res) => {
     });
   }
 };
+// Get room by room code
+export const getRoomByCode = async (req, res) => {
+  try {
+    const { roomCode } = req.params;
+
+    const room = await Room.findOne({ roomCode })
+      .populate("host", "username avatar")
+      .populate("users", "username avatar");
+
+    if (!room) {
+      return res.status(404).json({
+        success: false,
+        error: "Room not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      room,
+    });
+
+  } catch (error) {
+    console.error("Get room by code error:", error);
+
+    return res.status(500).json({
+      success: false,
+      error: "Internal Server Error",
+    });
+  }
+};

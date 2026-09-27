@@ -8,6 +8,7 @@ dotenv.config();
 
 import { dbConnect } from "./config/db.js";
 import authMiddleware from "./middlewares/authMiddleware.js";
+import { getRoomByCode } from "./controllers/roomController.js";
 import friendRouter from "./routes/friend.route.js";
 import authRouter from "./routes/authRoute.js";
 import roomRouter from "./routes/roomRouter.js";
@@ -39,6 +40,7 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/friends", authMiddleware, friendRouter);
+app.get("/api/invite/room/:roomCode", getRoomByCode);
 app.use("/api/room", authMiddleware, roomRouter);
 app.use("/api/user", authMiddleware, userRouter);
 

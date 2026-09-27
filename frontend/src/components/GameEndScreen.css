@@ -1,0 +1,778 @@
+* {
+  box-sizing: border-box;
+}
+
+.game-end {
+  min-height: 100vh;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  color: white;
+
+  font-family: "Cinzel", Georgia, serif;
+}
+
+/* =========================
+   MAFIA THEME
+========================= */
+
+.mafia-theme {
+  background:
+    radial-gradient(
+      circle at 50% 15%,
+      rgba(120, 0, 0, 0.5),
+      transparent 35%
+    ),
+    linear-gradient(
+      135deg,
+      #050000,
+      #180000,
+      #070000
+    );
+}
+
+/* =========================
+   VILLAGER THEME
+========================= */
+
+.villager-theme {
+  background:
+    radial-gradient(
+      circle at 50% 15%,
+      rgba(0, 100, 180, 0.35),
+      transparent 35%
+    ),
+    linear-gradient(
+      135deg,
+      #020914,
+      #061b31,
+      #020711
+    );
+}
+
+/* =========================
+   CONTAINER
+========================= */
+
+.game-end-container {
+  width: 100%;
+  max-width: 900px;
+
+  min-height: 100vh;
+
+  padding: 35px 30px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  position: relative;
+
+  z-index: 2;
+}
+
+/* =========================
+   LOGO
+========================= */
+
+.game-logo {
+  position: absolute;
+
+  top: 30px;
+  left: 35px;
+
+  display: flex;
+  align-items: center;
+
+  gap: 12px;
+}
+
+.logo-icon {
+  width: 42px;
+  height: 42px;
+
+  border: 2px solid currentColor;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 20px;
+
+  border-radius: 8px;
+}
+
+.mafia-theme .logo-icon {
+  color: #ff2b2b;
+}
+
+.villager-theme .logo-icon {
+  color: #4da6ff;
+}
+
+.game-logo h3 {
+  margin: 0;
+
+  font-size: 16px;
+
+  letter-spacing: 2px;
+}
+
+.game-logo span {
+  display: block;
+
+  margin-top: 3px;
+
+  font-family: Arial, sans-serif;
+
+  font-size: 9px;
+
+  letter-spacing: 2px;
+
+  opacity: 0.65;
+}
+
+/* =========================
+   WINNER ICON
+========================= */
+
+.winner-icon {
+  margin-top: 60px;
+
+  width: 75px;
+  height: 75px;
+
+  border-radius: 50%;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  font-size: 40px;
+
+  animation: winnerPulse 2s infinite;
+}
+
+.mafia-theme .winner-icon {
+  border: 2px solid #ff2222;
+
+  box-shadow:
+    0 0 20px #ff2222,
+    inset 0 0 20px rgba(255, 0, 0, 0.3);
+
+  background: rgba(100, 0, 0, 0.4);
+}
+
+.villager-theme .winner-icon {
+  border: 2px solid #3ca7ff;
+
+  box-shadow:
+    0 0 20px #3ca7ff,
+    inset 0 0 20px rgba(0, 100, 255, 0.3);
+
+  background: rgba(0, 60, 120, 0.4);
+}
+
+@keyframes winnerPulse {
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.08);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* =========================
+   WINNER TITLE
+========================= */
+
+.winner-title {
+  margin: 15px 0 5px;
+
+  font-size: clamp(42px, 7vw, 76px);
+
+  font-weight: 900;
+
+  letter-spacing: 5px;
+
+  text-align: center;
+
+  text-transform: uppercase;
+
+  animation: titleAppear 0.8s ease;
+}
+
+.mafia-theme .winner-title {
+  color: #ff3030;
+
+  text-shadow:
+    0 0 10px #ff0000,
+    0 0 35px rgba(255, 0, 0, 0.7);
+}
+
+.villager-theme .winner-title {
+  color: #71c4ff;
+
+  text-shadow:
+    0 0 10px #168cff,
+    0 0 35px rgba(0, 120, 255, 0.7);
+}
+
+@keyframes titleAppear {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.9);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.winner-subtitle {
+  margin: 0 0 25px;
+
+  font-family: Georgia, serif;
+
+  font-size: 17px;
+
+  opacity: 0.8;
+
+  letter-spacing: 1px;
+}
+
+/* =========================
+   POINTS
+========================= */
+
+.points-box {
+  width: 310px;
+
+  min-height: 90px;
+
+  border: 1px solid rgba(255, 255, 255, 0.3);
+
+  display: flex;
+
+  justify-content: center;
+  align-items: center;
+
+  gap: 18px;
+
+  background: rgba(0, 0, 0, 0.35);
+
+  backdrop-filter: blur(10px);
+
+  margin-bottom: 25px;
+}
+
+.mafia-theme .points-box {
+  border-color: #ff3131;
+
+  box-shadow:
+    0 0 20px rgba(255, 0, 0, 0.2);
+}
+
+.villager-theme .points-box {
+  border-color: #299cff;
+
+  box-shadow:
+    0 0 20px rgba(0, 120, 255, 0.2);
+}
+
+.coin {
+  width: 42px;
+  height: 42px;
+
+  border-radius: 50%;
+
+  background: #f4b400;
+
+  color: #fff;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 23px;
+
+  box-shadow: 0 0 15px rgba(255, 190, 0, 0.7);
+}
+
+.points-box strong {
+  display: block;
+
+  font-family: Arial, sans-serif;
+
+  font-size: 30px;
+
+  color: #fff;
+}
+
+.points-box span {
+  font-family: Arial, sans-serif;
+
+  font-size: 11px;
+
+  letter-spacing: 3px;
+
+  opacity: 0.65;
+}
+
+/* =========================
+   RANK SECTION
+========================= */
+
+.rank-section {
+  width: 100%;
+
+  max-width: 650px;
+
+  margin-bottom: 22px;
+}
+
+.section-title {
+  display: flex;
+
+  align-items: center;
+
+  gap: 15px;
+
+  margin-bottom: 20px;
+}
+
+.section-title span {
+  height: 1px;
+
+  flex: 1;
+
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.section-title p {
+  margin: 0;
+
+  font-size: 12px;
+
+  letter-spacing: 3px;
+
+  opacity: 0.7;
+}
+
+.rank-progression {
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  gap: 70px;
+}
+
+.rank-card {
+  text-align: center;
+
+  min-width: 130px;
+}
+
+.rank-badge {
+  width: 85px;
+  height: 85px;
+
+  margin: auto;
+
+  border: 3px solid;
+
+  border-radius: 20px;
+
+  transform: rotate(45deg);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.rank-badge span {
+  transform: rotate(-45deg);
+
+  font-size: 35px;
+}
+
+.rank-card h3 {
+  margin: 25px 0 3px;
+
+  font-family: Arial, sans-serif;
+
+  font-size: 15px;
+
+  letter-spacing: 1px;
+}
+
+.rank-card p {
+  margin: 0;
+
+  font-family: Arial, sans-serif;
+
+  font-size: 11px;
+
+  opacity: 0.55;
+}
+
+.rank-arrow {
+  font-size: 55px;
+
+  opacity: 0.7;
+
+  animation: arrowMove 1.5s infinite;
+}
+
+@keyframes arrowMove {
+  0% {
+    transform: translateX(0);
+  }
+
+  50% {
+    transform: translateX(8px);
+  }
+
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.rank-up {
+  margin: 15px auto 0;
+
+  text-align: center;
+
+  font-family: Arial, sans-serif;
+
+  font-weight: bold;
+
+  letter-spacing: 2px;
+
+  font-size: 13px;
+
+  animation: rankGlow 1.5s infinite;
+}
+
+.mafia-theme .rank-up {
+  color: #ff4040;
+}
+
+.villager-theme .rank-up {
+  color: #49adff;
+}
+
+@keyframes rankGlow {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.rank-same {
+  text-align: center;
+
+  font-family: Arial, sans-serif;
+
+  font-size: 11px;
+
+  opacity: 0.5;
+
+  margin-top: 15px;
+}
+
+/* =========================
+   STATS
+========================= */
+
+.stats-box {
+  width: 100%;
+
+  max-width: 650px;
+
+  min-height: 80px;
+
+  border: 1px solid rgba(255, 255, 255, 0.2);
+
+  display: grid;
+
+  grid-template-columns: repeat(3, 1fr);
+
+  background: rgba(0, 0, 0, 0.35);
+
+  margin-bottom: 25px;
+}
+
+.stat {
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: center;
+
+  justify-content: center;
+
+  gap: 3px;
+
+  border-right: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.stat:last-child {
+  border-right: none;
+}
+
+.stat-icon {
+  font-size: 18px;
+}
+
+.stat span {
+  font-family: Arial, sans-serif;
+
+  font-size: 9px;
+
+  letter-spacing: 2px;
+
+  opacity: 0.55;
+}
+
+.stat strong {
+  font-family: Arial, sans-serif;
+
+  font-size: 18px;
+}
+
+/* =========================
+   BUTTONS
+========================= */
+
+.action-buttons {
+  display: flex;
+
+  gap: 20px;
+
+  width: 100%;
+
+  max-width: 650px;
+}
+
+.action-buttons button {
+  flex: 1;
+
+  height: 55px;
+
+  border-radius: 4px;
+
+  font-family: Arial, sans-serif;
+
+  font-size: 14px;
+
+  font-weight: bold;
+
+  letter-spacing: 1px;
+
+  cursor: pointer;
+
+  transition: 0.25s;
+}
+
+.play-again-btn {
+  color: white;
+
+  border: 1px solid;
+
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.mafia-theme .play-again-btn {
+  border-color: #ff2d2d;
+
+  background: linear-gradient(
+    135deg,
+    #a40000,
+    #420000
+  );
+}
+
+.villager-theme .play-again-btn {
+  border-color: #238cff;
+
+  background: linear-gradient(
+    135deg,
+    #0875d1,
+    #053563
+  );
+}
+
+.lobby-btn {
+  color: white;
+
+  background: rgba(0, 0, 0, 0.35);
+
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.action-buttons button:hover {
+  transform: translateY(-3px);
+
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+}
+
+.action-buttons button span {
+  margin-right: 8px;
+
+  font-size: 18px;
+}
+
+/* =========================
+   BOTTOM TEXT
+========================= */
+
+.bottom-text {
+  margin-top: 25px;
+
+  font-family: Arial, sans-serif;
+
+  font-size: 9px;
+
+  letter-spacing: 4px;
+
+  opacity: 0.35;
+
+  text-align: center;
+}
+
+/* =========================
+   FOG
+========================= */
+
+.fog {
+  position: absolute;
+
+  width: 600px;
+  height: 200px;
+
+  border-radius: 50%;
+
+  filter: blur(60px);
+
+  opacity: 0.15;
+
+  pointer-events: none;
+}
+
+.fog-one {
+  left: -200px;
+  bottom: 0;
+
+  background: white;
+
+  animation: fogMove 10s infinite alternate;
+}
+
+.fog-two {
+  right: -200px;
+  top: 30%;
+
+  background: white;
+
+  animation: fogMove 13s infinite alternate-reverse;
+}
+
+@keyframes fogMove {
+  from {
+    transform: translateX(-40px);
+  }
+
+  to {
+    transform: translateX(80px);
+  }
+}
+
+/* =========================
+   MOBILE
+========================= */
+
+@media (max-width: 700px) {
+
+  .game-end-container {
+    padding: 25px 15px;
+  }
+
+  .game-logo {
+    position: relative;
+
+    top: auto;
+    left: auto;
+
+    margin-bottom: 20px;
+  }
+
+  .winner-icon {
+    margin-top: 5px;
+  }
+
+  .winner-title {
+    font-size: 38px;
+
+    letter-spacing: 2px;
+  }
+
+  .winner-subtitle {
+    text-align: center;
+
+    font-size: 13px;
+  }
+
+  .rank-progression {
+    gap: 20px;
+  }
+
+  .rank-badge {
+    width: 65px;
+    height: 65px;
+  }
+
+  .rank-badge span {
+    font-size: 27px;
+  }
+
+  .rank-card h3 {
+    font-size: 11px;
+  }
+
+  .rank-arrow {
+    font-size: 35px;
+  }
+
+  .stats-box {
+    min-height: 70px;
+  }
+
+  .stat span {
+    font-size: 7px;
+
+    letter-spacing: 1px;
+  }
+
+  .action-buttons {
+    flex-direction: column;
+  }
+
+  .action-buttons button {
+    width: 100%;
+  }
+}
