@@ -1,24 +1,12 @@
 /**
  * socket.js — Singleton Socket.IO client
- * Provides getSocket() and disconnectSocket() for use across the app.
- *
- * FIX: Previously getSocket() created a NEW socket whenever socket.connected
- * was false (e.g. during a brief reconnection window). A new socket means a
- * new socket.id, which the backend registers as a completely separate player —
- * causing duplicate entries in the player list.
- *
- * Now we always return the SAME socket instance once created, and simply call
- * socket.connect() if it has dropped. A new instance is only created if the
- * socket was deliberately destroyed via disconnectSocket().
+ * Provides getSocket(), disconnectSocket(), and default socket proxy object.
  */
 import { io } from 'socket.io-client';
 
 let socket = null;
 
 export function getSocket() {
-  // Reuse the existing instance even if it's temporarily disconnected.
-  // Calling connect() will resume on the same socket.id so the backend
-  // doesn't see a new player.
   if (socket) {
     if (!socket.connected) socket.connect();
     return socket;
@@ -56,3 +44,14 @@ export function disconnectSocket() {
     console.log('[Socket] Manually disconnected & cleared.');
   }
 }
+
+// Proxy object for default import (`import socket from '../services/socket.js'`)
+const socketProxy = {
+  emit: (...args) => getSocket().emit(...args),
+  on: (...args) => getSocket().on(...args),
+  off: (...args) => getSocket().off(...args),
+  getSocket,
+  disconnectSocket,
+};
+
+export default socketProxy;

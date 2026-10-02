@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, useParams } from "react-router-dom";
-import "../styles/loading.css";
+import "../../styles/loading.css";
 const BACKEND_BASE = "http://localhost:5000/api";
 
 export default function LoadingScreen() {

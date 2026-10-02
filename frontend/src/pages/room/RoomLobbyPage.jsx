@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Crown, LogOut, RefreshCw, Clock, Shield, Swords, Heart, User, Play, AlertTriangle } from 'lucide-react';
-import { getRoomDetails, leaveRoom, startGame } from '../services/roomService.js';
+import { Users, Crown, LogOut, RefreshCw, Clock, Shield, Swords, Heart, User, Play, AlertTriangle, Send, Check } from 'lucide-react';
+import { getRoomDetails, leaveRoom, startGame } from '../../services/roomService.js';
+import axios from 'axios';
+import socket from '../../services/socket.js';
 
 const MAP_META = {
   city:    { name: 'City Nights',    icon: '🏙️', color: '#ff66b2' },
@@ -25,8 +27,6 @@ export default function RoomLobbyPage() {
   const navigate = useNavigate();
 
   const [room, setRoom] = useState(null);
-  // isHost is determined server-side (backend compares verified JWT user with room.host)
-  // so it's always accurate regardless of client localStorage token state.
   const [isHost, setIsHost] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
@@ -34,8 +34,38 @@ export default function RoomLobbyPage() {
   const [isStarting, setIsStarting] = useState(false);
   const [actionError, setActionError] = useState(null);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [realFriends, setRealFriends] = useState([]);
+  const [invitedMap, setInvitedMap] = useState({});
 
-  // Derive current user id from JWT — still needed to mark "(you)" in the player grid
+  useEffect(() => {
+    async function loadFriends() {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await axios.get("http://localhost:5000/api/friends/list", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setRealFriends(res.data || []);
+      } catch (err) {
+        console.error("Error loading friends in lobby:", err);
+      }
+    }
+    if (isHost) {
+      loadFriends();
+    }
+  }, [isHost]);
+
+  const handleSendLobbyInvite = (friend) => {
+    const currentUsername = room?.host?.username || "Host";
+    socket.emit("send-lobby-invite", {
+      targetUserId: friend._id,
+      roomId,
+      roomName: room?.roomName || "Mafia Lobby",
+      hostName: currentUsername,
+      hostId: currentUserId,
+    });
+    setInvitedMap(prev => ({ ...prev, [friend._id]: true }));
+  };
+
   const currentUserId = (() => {
     try {
       const token = localStorage.getItem('token');
@@ -51,8 +81,6 @@ export default function RoomLobbyPage() {
       const token = localStorage.getItem('token');
       const response = await getRoomDetails(token, roomId);
       setRoom(response.data.room);
-      // Use server-returned isHost — computed from the verified JWT user vs room.host
-      // This is the single source of truth for host status.
       if (typeof response.data.isHost === 'boolean') {
         setIsHost(response.data.isHost);
       }
@@ -68,14 +96,12 @@ export default function RoomLobbyPage() {
     }
   }, [roomId]);
 
-  // Initial load + auto-refresh every 2 seconds so host sees new players join quickly
   useEffect(() => {
     fetchRoom();
     const interval = setInterval(fetchRoom, 2000);
     return () => clearInterval(interval);
   }, [fetchRoom]);
 
-  // Auto-redirect to loading screen if game started
   useEffect(() => {
     if (room?.gameStarted) {
       navigate(`/loading/${roomId}`);
@@ -109,76 +135,70 @@ export default function RoomLobbyPage() {
     }
   };
 
-  // ─── Loading State ───────────────────────────────────────────────
   if (isLoading) {
     return (
-      <div className="page-scroll" style={{
-        width: '100%', height: '100%', display: 'flex',
-        alignItems: 'center', justifyContent: 'center', color: '#fff',
-      }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-          <div style={{
-            width: 48, height: 48, border: '3px solid #ff3344',
-            borderTopColor: 'transparent', borderRadius: '50%',
-            animation: 'spin-slow 0.8s linear infinite',
-          }} />
-          <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Loading lobby...</span>
-        </div>
-      </div>
-    );
-  }
-
-  // ─── Error State ─────────────────────────────────────────────────
-  if (fetchError || !room) {
-    return (
-      <div className="page-scroll" style={{
-        width: '100%', height: '100%', display: 'flex',
-        alignItems: 'center', justifyContent: 'center', color: '#fff',
-        padding: '24px 40px',
+      <div style={{
+        width: '100%', height: '100%',
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        gap: 16, color: '#fff',
       }}>
         <div style={{
-          background: 'rgba(255,20,40,0.06)', border: '1px solid rgba(255,20,40,0.25)',
-          borderRadius: 16, padding: '40px 48px', textAlign: 'center', display: 'flex',
-          flexDirection: 'column', gap: 16, alignItems: 'center',
-        }}>
-          <span style={{ fontSize: 40 }}>💀</span>
-          <h2 style={{ fontFamily: 'var(--font-display)', color: '#ff4455', fontSize: 20 }}>
-            ROOM NOT FOUND
-          </h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-            {fetchError || 'This lobby no longer exists.'}
-          </p>
-          <button onClick={() => navigate('/join-room')} className="btn-primary" style={{ marginTop: 8 }}>
-            BACK TO ROOMS
-          </button>
-        </div>
+          width: 48, height: 48, borderRadius: '50%',
+          border: '3px solid #ff3344', borderTopColor: 'transparent',
+          animation: 'spin-slow 0.8s linear infinite',
+        }} />
+        <span style={{ fontFamily: 'var(--font-display)', letterSpacing: '0.1em', fontSize: 14, color: 'var(--text-muted)' }}>
+          INFILTRATING LOBBY...
+        </span>
       </div>
     );
   }
 
-  const mapMeta = MAP_META[room.map] || { name: room.map, icon: '🏛️', color: '#ff4455' };
+  if (fetchError || !room) {
+    return (
+      <div style={{
+        width: '100%', height: '100%',
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        gap: 16, color: '#fff', padding: 24, textAlign: 'center',
+      }}>
+        <AlertTriangle size={48} color="#ff4455" />
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: '#ff4455' }}>
+          LOBBY NOT ACCESSIBLE
+        </h2>
+        <p style={{ color: 'var(--text-muted)', fontSize: 13, maxWidth: 360 }}>
+          {fetchError || 'Room data could not be retrieved.'}
+        </p>
+        <button onClick={() => navigate('/join-room')} className="btn-primary" style={{ padding: '10px 24px', fontSize: 13 }}>
+          BACK TO LOBBY BROWSER
+        </button>
+      </div>
+    );
+  }
+
   const currentPlayers = room.users?.length || 0;
-  // isHost comes from state (set by fetchRoom from the server response) — see above
   const isFull = currentPlayers >= room.totalPlayers;
-  const MIN_PLAYERS = 5;
+  const mapMeta = MAP_META[room.map] || { name: room.map || 'Old Mansion', icon: '🏛️', color: '#ff4455' };
+  const MIN_PLAYERS = 4;
   const canStart = currentPlayers >= MIN_PLAYERS;
+  const effectiveMafiaCount = room.contractMode === 'classic'
+    ? (currentPlayers >= 8 ? 2 : 1)
+    : (room.contractMode === 'quick' ? 1 : Math.max(1, Math.floor(currentPlayers / 3)));
 
-  // Dynamic mafia count — mirrors backend logic so display is accurate
-  const effectiveMafiaCount = currentPlayers <= 7 ? 1 : currentPlayers <= 12 ? 2 : 3;
+  let statusText = 'WAITING FOR PLAYERS';
+  let statusSub = `Need at least ${MIN_PLAYERS} players to start (currently ${currentPlayers})`;
+  let statusColor = '#ffaa33';
 
-  // Status helpers
-  const playersNeeded = MIN_PLAYERS - currentPlayers;
-  const statusColor = isFull ? '#5ad15a' : canStart ? '#ffd700' : '#ff8800';
-  const statusText = isFull
-    ? 'LOBBY FULL — READY!'
-    : canStart
-    ? 'READY TO START!'
-    : `WAITING FOR PLAYERS`;
-  const statusSub = isFull
-    ? 'All slots filled. Host can start now!'
-    : canStart
-    ? `${currentPlayers}/${room.totalPlayers} players — host can start anytime!`
-    : `Need ${playersNeeded} more player${playersNeeded !== 1 ? 's' : ''} to start (min ${MIN_PLAYERS})`;
+  if (isFull) {
+    statusText = 'LOBBY FULL';
+    statusSub = 'Maximum capacity reached. Host may start game.';
+    statusColor = '#5ad15a';
+  } else if (canStart) {
+    statusText = 'READY TO START';
+    statusSub = `${currentPlayers}/${room.totalPlayers} players in lobby. Host can launch match.`;
+    statusColor = '#ffd700';
+  }
 
   return (
     <div className="page-scroll" style={{
@@ -187,16 +207,14 @@ export default function RoomLobbyPage() {
       color: '#fff',
       display: 'flex', flexDirection: 'column', gap: 24,
     }}>
-
-      {/* ── Page Header ─────────────────────────────────────────── */}
+      {/* ── Top Header ───────────────────────────────────────────── */}
       <motion.div
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontSize: 28 }}>{mapMeta.icon}</span>
             <h1 style={{
               fontFamily: 'var(--font-display)', fontSize: 26,
               letterSpacing: '0.1em', color: '#ff4455',
@@ -440,6 +458,55 @@ export default function RoomLobbyPage() {
           transition={{ delay: 0.15 }}
           style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
         >
+          {/* Host Friend Invite Panel */}
+          {isHost && (
+            <div
+              className="glass-panel"
+              style={{
+                padding: 20, background: 'rgba(10,5,15,0.85)',
+                border: '1.5px solid rgba(120,40,60,0.25)',
+                display: 'flex', flexDirection: 'column', gap: 12,
+              }}
+            >
+              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 14, letterSpacing: '0.08em', color: '#ff4455' }}>
+                INVITE ALLIES TO LOBBY
+              </h3>
+              {realFriends.length === 0 ? (
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                  No friends added yet. Add players from Social Hub!
+                </span>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 150, overflowY: 'auto' }}>
+                  {realFriends.map(friend => (
+                    <div key={friend._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)', padding: '6px 10px', borderRadius: 6 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {(() => {
+                          const src = friend.avatar;
+                          const isUrl = src && (src.startsWith('http') || src.startsWith('/') || src.startsWith('data:'));
+                          return isUrl
+                            ? <img src={src} alt="avatar" style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
+                            : <span style={{ fontSize: 16 }}>{src || '🎭'}</span>;
+                        })()}
+                        <span style={{ fontSize: 12, fontWeight: 600 }}>{friend.username}</span>
+                      </div>
+                      <button
+                        onClick={() => handleSendLobbyInvite(friend)}
+                        className="btn-secondary"
+                        style={{
+                          padding: '3px 8px', fontSize: 10, gap: 4,
+                          borderColor: invitedMap[friend._id] ? '#5ad15a' : 'rgba(255,50,70,0.3)',
+                          color: invitedMap[friend._id] ? '#5ad15a' : '#fff'
+                        }}
+                      >
+                        {invitedMap[friend._id] ? '✓ SENT' : <><Send size={10} /> INVITE</>}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Status Card */}
           <div
             className="glass-panel"

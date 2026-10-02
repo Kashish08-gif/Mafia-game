@@ -21,7 +21,7 @@ import { useRef, useEffect, useState, useCallback } from 'react';
 import { Send, Smile } from 'lucide-react';
 import EmojiPicker from 'emoji-picker-react';
 
-export default function ChatBox({ messages = [], onSend, myColor = '#ffd700' }) {
+export default function ChatBox({ messages = [], onSend, myColor = '#ffd700', isAlive = true }) {
   const [input, setInput]     = useState('');
   const [showEmoji, setShowEmoji] = useState(false);
   const bottomRef             = useRef(null);
@@ -91,6 +91,27 @@ export default function ChatBox({ messages = [], onSend, myColor = '#ffd700' }) 
         position: 'relative',
       }}
     >
+      {/* Ghost Chat Banner */}
+      {!isAlive && (
+        <div
+          style={{
+            background: 'linear-gradient(90deg, rgba(80, 20, 100, 0.85), rgba(30, 10, 50, 0.95))',
+            border: '1px solid rgba(220, 120, 255, 0.4)',
+            borderRadius: 8,
+            padding: '4px 10px',
+            fontSize: 11,
+            color: '#e4b8ff',
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+          }}
+        >
+          <span>👻</span>
+          <span>Ghost Chat (Dead Players Only)</span>
+        </div>
+      )}
+
       {/* Message list */}
       <div
         style={{
@@ -220,14 +241,14 @@ export default function ChatBox({ messages = [], onSend, myColor = '#ffd700' }) 
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Chat or pick emoji…"
+          placeholder={isAlive ? "Chat or pick emoji…" : "👻 Ghost message (dead only)…"}
           style={{
             flex: 1,
             padding: '10px 14px',
             borderRadius: 10,
             background: 'rgba(8,4,14,0.88)',
             backdropFilter: 'blur(10px)',
-            border: '1.5px solid rgba(255,215,0,0.2)',
+            border: !isAlive ? '1.5px solid rgba(180, 100, 255, 0.4)' : '1.5px solid rgba(255,215,0,0.2)',
             color: '#fff',
             outline: 'none',
             fontSize: 13,
@@ -243,9 +264,11 @@ export default function ChatBox({ messages = [], onSend, myColor = '#ffd700' }) 
             flexShrink: 0,
             padding: '10px 14px',
             borderRadius: 10,
-            background: `linear-gradient(135deg, ${myColor}cc, ${myColor}88)`,
+            background: !isAlive
+              ? 'linear-gradient(135deg, #7c3aed, #4f46e5)'
+              : `linear-gradient(135deg, ${myColor}cc, ${myColor}88)`,
             border: 'none',
-            color: '#000',
+            color: '#fff',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
@@ -265,13 +288,19 @@ export default function ChatBox({ messages = [], onSend, myColor = '#ffd700' }) 
           textAlign: 'center',
         }}
       >
-        <kbd style={{ background: '#333', padding: '1px 4px', borderRadius: 3 }}>W</kbd>{' '}
-        <kbd style={{ background: '#333', padding: '1px 4px', borderRadius: 3 }}>A</kbd>{' '}
-        <kbd style={{ background: '#333', padding: '1px 4px', borderRadius: 3 }}>S</kbd>{' '}
-        <kbd style={{ background: '#333', padding: '1px 4px', borderRadius: 3 }}>D</kbd>{' '}
-        to move &nbsp;|&nbsp;{' '}
-        <kbd style={{ background: '#333', padding: '1px 4px', borderRadius: 3 }}>RMB</kbd>{' '}
-        to rotate camera
+        {isAlive ? (
+          <>
+            <kbd style={{ background: '#333', padding: '1px 4px', borderRadius: 3 }}>W</kbd>{' '}
+            <kbd style={{ background: '#333', padding: '1px 4px', borderRadius: 3 }}>A</kbd>{' '}
+            <kbd style={{ background: '#333', padding: '1px 4px', borderRadius: 3 }}>S</kbd>{' '}
+            <kbd style={{ background: '#333', padding: '1px 4px', borderRadius: 3 }}>D</kbd>{' '}
+            to move &nbsp;|&nbsp;{' '}
+            <kbd style={{ background: '#333', padding: '1px 4px', borderRadius: 3 }}>RMB</kbd>{' '}
+            to rotate camera
+          </>
+        ) : (
+          <span>👻 Spectating survivors • Press Q / E to switch player</span>
+        )}
       </div>
     </div>
   );

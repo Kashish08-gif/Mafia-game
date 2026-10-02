@@ -1,25 +1,21 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-
 import Layout from "./shared/Layout";
-
-import DashboardPage from "./pages/DashboardPage";
-import ProfilePage from "./pages/ProfilePage";
-import FriendsPage from "./pages/FriendsPage";
-import LeaderboardPage from "./pages/LeaderboardPage";
-import CreateRoomPage from "./pages/CreateRoomPage";
-import JoinRoomPage from "./pages/JoinRoomPage";
-import RoomLobbyPage from "./pages/RoomLobbyPage";
-import StorePage from "./pages/StorePage";
-import SettingsPage from "./pages/SettingsPage";
-
-import AuthPage from "./pages/AuthPage";
-import LoadingScreen from "./pages/LoadingScreen";
-import RoleRevealPage from "./pages/RoleRevealPage";
-import GameMapPage from "./pages/GameMapPage";
-import InvitePage from "./pages/InvitePage";
 import GameEndScreen from "./pages/GameEndScreen";
-
-
+import {
+  AuthPage,
+  DashboardPage,
+  ProfilePage,
+  FriendsPage,
+  LeaderboardPage,
+  CreateRoomPage,
+  JoinRoomPage,
+  RoomLobbyPage,
+  StorePage,
+  SettingsPage,
+  LoadingScreen,
+  RoleRevealPage,
+  GameMapPage,
+} from "./pages";
 
 export default function App() {
   return (
@@ -28,9 +24,9 @@ export default function App() {
 
         {/* Authentication */}
         <Route path="/" element={<AuthPage />} />
-
-        {/* Invite */}
-        <Route path="/invite/:token" element={<InvitePage />} />
+        <Route path="/loading/:roomId" element={<LoadingScreen />} />
+        <Route path="/role-reveal/:roomId" element={<RoleRevealPage />} />
+        <Route path="/game/:roomId" element={<GameMapPage />} />
 
         {/* JOIN THROUGH INVITATION LINK */}
         <Route

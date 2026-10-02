@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Swords, Shield, Heart, User, Key } from "lucide-react";
-import { getRoomDetails } from "../services/roomService.js";
-import "../styles/roleReveal.css";
+import { getRoomDetails } from "../../services/roomService.js";
+import "../../styles/roleReveal.css";
 
 /* ─── Role definitions ─────────────────────────────────── */
 const ROLE_META = {

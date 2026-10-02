@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import axios from "axios";
 import { motion, AnimatePresence } from 'framer-motion';
-import { getUserData } from '../services/userService.js';
+import { getUserData } from '../../services/userService.js';
 import {
   ShieldAlert, Upload, Trophy, Star, Target, Shield,
   Smile, Swords, Zap, CheckCircle2, AlertTriangle, Eye
@@ -84,6 +84,7 @@ const RANK_CONFIG = [
   { name: 'Diamond',  min: 3000, max: 4999,  color: '#a8d8f0', icon: '💎', nextName: 'Master'  },
   { name: 'Master',   min: 5000, max: 99999, color: '#ff4455', icon: '👑', nextName: 'Master'  },
 ];
+
 function getRank(trophies) {
   return RANK_CONFIG.find(r => trophies >= r.min && trophies <= r.max) || RANK_CONFIG[0];
 }
@@ -94,25 +95,22 @@ const isImageSrc = (val) =>
 export default function ProfilePage() {
   const [avatar, setAvatar] = useState(() => {
     const saved = localStorage.getItem('mafia_avatar');
-    // Return URL or base64 as image src; ignore emoji strings
     if (saved && isImageSrc(saved)) return saved;
     return null;
   });
   const [selectedDefault, setSelectedDefault] = useState(() => {
     const saved = localStorage.getItem('mafia_avatar');
-    if (!saved) return '🎭';           // nothing saved → default emoji
-    if (isImageSrc(saved)) return null;  // image → no emoji selected
-    if ([...saved].length <= 2) return saved; // emoji
-    return '🎭';                        // fallback
+    if (!saved) return '🎭';
+    if (isImageSrc(saved)) return null;
+    if ([...saved].length <= 2) return saved;
+    return '🎭';
   });
-  const [tempUsername, setTempUsername] =
-    useState("Shadow");
+  const [tempUsername, setTempUsername] = useState("Shadow");
   const [showSavedToast, setShowSavedToast] = useState(false);
   const [rawFile, setRawFile] = useState(null);
   const fileRef = useRef(null);
   const [profile, setProfile] = useState(null);
 
-  // Player stats mapped from DB
   const getFavRoleName = (role) => {
     switch (role) {
       case 'mafia': return 'The Mastermind (Mafia)';
@@ -124,24 +122,14 @@ export default function ProfilePage() {
   };
 
   const stats = {
-    matchesPlayed:
-      profile?.totalGamesPlayed || 0,
-
-    wins:
-      profile?.totalGamesWon || 0,
-
-    losses:
-      (profile?.totalGamesPlayed || 0) -
-      (profile?.totalGamesWon || 0),
-
-    mafiaKills:
-      profile?.mafiaKills || 0,
-
-    trophies:
-      profile?.trophies || 0,
-
+    matchesPlayed: profile?.totalGamesPlayed || 0,
+    wins: profile?.totalGamesWon || 0,
+    losses: (profile?.totalGamesPlayed || 0) - (profile?.totalGamesWon || 0),
+    mafiaKills: profile?.mafiaKills || 0,
+    trophies: profile?.trophies || 0,
     favRoleDesc: getFavRoleName(profile?.roleGetMaximumTime),
   };
+
   useEffect(() => {
     const fetchProfile = async () => {
       try {
@@ -163,25 +151,21 @@ export default function ProfilePage() {
         if (!token || !userId) return;
 
         const res = await getUserData(token, userId);
-
         setProfile(res.data.user);
-
         setTempUsername(res.data.user.username);
 
         if (res.data.user.avatar) {
           const av = res.data.user.avatar;
           if (isImageSrc(av)) {
-            // server URL or base64 → show as image
             setAvatar(av);
             setSelectedDefault(null);
           } else {
-            // emoji (length <= 2)
             if ([...av].length <= 2) {
               setAvatar(null);
               setSelectedDefault(av);
             } else {
               setAvatar(null);
-              setSelectedDefault('🎭'); // Fallback for invalid emoji / old DB values like "avatar1"
+              setSelectedDefault('🎭');
             }
           }
         }
@@ -192,21 +176,19 @@ export default function ProfilePage() {
 
     fetchProfile();
   }, []);
+
   const winRate =
     stats.matchesPlayed > 0
-      ? Math.round(
-        (stats.wins / stats.matchesPlayed) * 100
-      )
+      ? Math.round((stats.wins / stats.matchesPlayed) * 100)
       : 0;
 
-  // Dynamic rank based on real trophies
   const currentRank  = getRank(stats.trophies);
   const currentRankName = currentRank.name;
   const nextRankName  = currentRank.nextName;
   const rankMin       = currentRank.min;
   const rankMax       = currentRank.max;
   const rankProgress  = Math.max(0, stats.trophies - rankMin);
-  const rankTotal     = rankMax - rankMin || 1;  // avoid divide-by-zero for Master tier
+  const rankTotal     = rankMax - rankMin || 1;
   const progressPct   = Math.min(100, Math.round((rankProgress / rankTotal) * 100));
 
   const handleAvatarChange = (e) => {
@@ -247,30 +229,21 @@ export default function ProfilePage() {
         }
       );
 
-      // update local state
-      setProfile((prev) => ({
-        ...prev,
-        username: tempUsername,
-        avatar: res.data.user.avatar,
-      }));
-
-      // Update local storage so HUD can update
-      localStorage.setItem('mafia_avatar', res.data.user.avatar);
-      localStorage.setItem('mafia_username', tempUsername);
-
-      window.dispatchEvent(new Event("profileUpdate"));
+      if (res.data.user.avatar) {
+        const savedAvatar = res.data.user.avatar;
+        localStorage.setItem('mafia_avatar', savedAvatar);
+      }
+      if (res.data.user.username) {
+        localStorage.setItem('mafia_username', res.data.user.username);
+        localStorage.setItem('username', res.data.user.username);
+      }
 
       setShowSavedToast(true);
-
-      setTimeout(() => {
-        setShowSavedToast(false);
-      }, 2500);
-
+      setTimeout(() => setShowSavedToast(false), 2800);
     } catch (err) {
-      console.error("Error saving profile changes:", err);
+      console.error(err);
     }
   };
-
 
   return (
     <div className="page-scroll" style={{
@@ -278,24 +251,22 @@ export default function ProfilePage() {
       padding: '24px 40px 100px 40px',
       color: '#fff',
       display: 'flex', flexDirection: 'column', gap: 24,
-      position: 'relative',
     }}>
-      {/* Toast Notification */}
+      {/* Toast */}
       <AnimatePresence>
         {showSavedToast && (
           <motion.div
-            initial={{ opacity: 0, y: -50, x: '-50%' }}
+            initial={{ opacity: 0, y: -40, x: '-50%' }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -50 }}
+            exit={{ opacity: 0, y: -40 }}
             style={{
               position: 'fixed', top: 90, left: '50%', transform: 'translateX(-50%)',
-              zIndex: 100, background: 'rgba(90,200,100,0.95)', color: '#fff',
-              padding: '10px 24px', borderRadius: 8, fontWeight: 700, fontSize: 13,
-              boxShadow: '0 0 20px rgba(90,200,100,0.5)', border: '1px solid #5ad15a',
-              fontFamily: 'var(--font-display)', letterSpacing: '0.05em',
+              zIndex: 999, background: 'rgba(90,200,100,0.92)', color: '#000',
+              padding: '10px 24px', borderRadius: 8, fontWeight: 800, fontSize: 13,
+              boxShadow: '0 0 20px rgba(90,200,100,0.5)', display: 'flex', alignItems: 'center', gap: 8
             }}
           >
-            ✓ Profile changes saved successfully!
+            <CheckCircle2 size={16} /> PROFILE DOSSIER UPDATED!
           </motion.div>
         )}
       </AnimatePresence>
@@ -307,77 +278,106 @@ export default function ProfilePage() {
         style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
       >
         <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, letterSpacing: '0.12em', color: '#ff4455' }}>
-          PLAYER PROFILE
+          HITMAN DOSSIER
         </h1>
-        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Customize your appearance and inspect your records</span>
+        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Manage your Identity, inspect your contract stats, and view unlocked badges</span>
       </motion.div>
 
-      {/* Main Grid: Left side customizer, Right side stats & achievements */}
+      {/* Grid Layout: Left Avatar & Name Edit, Right Stats & Badges */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: '320px 1fr',
-        gap: 24,
+        gridTemplateColumns: '340px 1fr',
+        gap: 32,
         alignItems: 'start',
       }}>
-        {/* LEFT COLUMN: Avatar & Username Customization */}
+        {/* LEFT COLUMN: Identity Customization */}
         <motion.div
-          initial={{ x: -30, opacity: 0 }}
+          initial={{ x: -20, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           transition={{ delay: 0.1 }}
           className="glass-panel"
           style={{
             padding: 24, display: 'flex', flexDirection: 'column', gap: 20,
-            alignItems: 'center', background: 'linear-gradient(180deg, rgba(20,8,22,0.85) 0%, rgba(8,3,10,0.9) 100%)',
-            border: '1.5px solid rgba(120,40,60,0.3)',
+            background: 'rgba(10,5,15,0.85)',
+            border: '1.5px solid rgba(120,40,60,0.25)',
           }}
         >
-          {/* Avatar Preview */}
-          <div style={{
-            width: 140, height: 140, borderRadius: '50%',
-            border: '3px solid #ff4455',
-            boxShadow: '0 0 24px rgba(255,20,40,0.4)',
-            overflow: 'hidden',
-            background: 'linear-gradient(135deg,#1d0c24,#0c0412)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            position: 'relative',
-          }}>
-            {avatar ? (
-              <img src={avatar} alt="custom avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            ) : (
-              <span style={{ fontSize: 72 }}>{selectedDefault}</span>
-            )}
+          <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 16, letterSpacing: '0.08em', color: '#ff4455' }}>
+            SYNDICATE IDENTITY
+          </h3>
+
+          {/* Current Avatar Display */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+            <div style={{
+              width: 100, height: 100, borderRadius: '50%',
+              background: 'rgba(255,255,255,0.03)',
+              border: '2.5px solid #ff3344',
+              boxShadow: '0 0 25px rgba(255,30,50,0.3)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 48, overflow: 'hidden', position: 'relative'
+            }}>
+              {avatar ? (
+                <img src={avatar} alt="Custom Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <span>{selectedDefault}</span>
+              )}
+            </div>
+
+            {/* Custom Image Upload Button */}
+            <input
+              type="file"
+              ref={fileRef}
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={handleAvatarChange}
+            />
+            <button
+              onClick={() => fileRef.current?.click()}
+              className="btn-secondary"
+              style={{ padding: '6px 14px', fontSize: 11, gap: 6 }}
+            >
+              <Upload size={13} /> UPLOAD CUSTOM IMAGE
+            </button>
           </div>
 
-          {/* Upload Button */}
-          <button
-            onClick={() => fileRef.current?.click()}
-            className="btn-secondary"
-            style={{ width: '100%', gap: 8, justifyContent: 'center', border: '1px solid rgba(180,50,80,0.4)' }}
-          >
-            <Upload size={16} /> UPLOAD CUSTOM
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            onChange={handleAvatarChange}
-            style={{ display: 'none' }}
-          />
+          {/* Preset Avatar Selector */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <label style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
+              OR SELECT PRESET AVATAR
+            </label>
+            <div style={{
+              display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8,
+              background: 'rgba(0,0,0,0.2)', padding: 8, borderRadius: 8,
+            }}>
+              {DEFAULT_AVATARS.map(av => (
+                <button
+                  key={av.id}
+                  onClick={() => handleSelectDefault(av.emoji)}
+                  style={{
+                    background: selectedDefault === av.emoji && !avatar ? 'rgba(255,30,50,0.2)' : 'transparent',
+                    border: selectedDefault === av.emoji && !avatar ? '1.5px solid #ff3344' : '1px solid transparent',
+                    borderRadius: 6, padding: '6px 0', fontSize: 20, cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                  title={av.label}
+                >
+                  {av.emoji}
+                </button>
+              ))}
+            </div>
+          </div>
 
-          <div style={{ width: '100%', height: 1, background: 'rgba(255,255,255,0.06)' }} />
-
-          {/* Username Input Field */}
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {/* Codename Edit Input */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
-              CODENAME (USERNAME)
+              ALIAS / CODENAME
             </label>
             <input
               type="text"
               value={tempUsername}
               onChange={e => setTempUsername(e.target.value)}
               className="input-dark"
-              maxLength={15}
-              placeholder="Enter codename..."
+              style={{ width: '100%' }}
             />
           </div>
 
@@ -385,118 +385,84 @@ export default function ProfilePage() {
           <button
             onClick={handleSaveChanges}
             className="btn-primary"
-            style={{ width: '100%', gap: 8, justifyContent: 'center', marginTop: 4, height: 44 }}
+            style={{ width: '100%', padding: '12px', fontSize: 13, gap: 8, marginTop: 4 }}
           >
-            SAVE CHANGES
+            <CheckCircle2 size={16} /> SAVE DOSSIER
           </button>
-
-          <div style={{ width: '100%', height: 1, background: 'rgba(255,255,255,0.06)' }} />
-
-          {/* Default Avatars Grid */}
-          <div style={{ width: '100%' }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.06em', display: 'block', marginBottom: 12 }}>
-              SELECT DEFAULT AVATAR
-            </span>
-            <div style={{
-              display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8
-            }}>
-              {DEFAULT_AVATARS.map((av) => (
-                <button
-                  key={av.id}
-                  onClick={() => handleSelectDefault(av.emoji)}
-                  style={{
-                    height: 52, borderRadius: 8,
-                    background: selectedDefault === av.emoji ? 'rgba(255,20,40,0.12)' : 'rgba(255,255,255,0.02)',
-                    border: selectedDefault === av.emoji ? '1.5px solid #ff3344' : '1.5px solid rgba(255,255,255,0.05)',
-                    fontSize: 24, cursor: 'pointer', transition: 'all 0.2s',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    boxShadow: selectedDefault === av.emoji ? '0 0 10px rgba(255,30,50,0.3)' : 'none',
-                  }}
-                  onMouseEnter={e => {
-                    if (selectedDefault !== av.emoji) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)';
-                  }}
-                  onMouseLeave={e => {
-                    if (selectedDefault !== av.emoji) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)';
-                  }}
-                >
-                  {av.emoji}
-                </button>
-              ))}
-            </div>
-          </div>
         </motion.div>
 
-        {/* RIGHT COLUMN: Stats, Rank, and Achievements */}
+        {/* RIGHT COLUMN: Stats Cards & Badges */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          {/* STATS GRID & RANK */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-            {/* Stats Panel */}
+
+          {/* TOP STATS CARDS GRID */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+            {/* Matches & Win Rate */}
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.1 }}
+              className="glass-panel"
+              style={{
+                padding: 20, display: 'flex', flexDirection: 'column', gap: 12,
+                background: 'rgba(10,5,15,0.85)',
+                border: '1.5px solid rgba(120,40,60,0.25)',
+              }}
+            >
+              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 13, letterSpacing: '0.08em', color: '#ff4455' }}>
+                MATCH PERFORMANCE
+              </h3>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                <span style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 900, color: '#fff' }}>
+                  {stats.matchesPlayed}
+                </span>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>MATCHES</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 8 }}>
+                <span style={{ color: '#5ad15a', fontWeight: 700 }}>WINS: {stats.wins}</span>
+                <span style={{ color: '#ff5566', fontWeight: 700 }}>LOSSES: {stats.losses}</span>
+                <span style={{ color: '#ffd700', fontWeight: 700 }}>{winRate}% RATE</span>
+              </div>
+            </motion.div>
+
+            {/* Mafia Kills */}
             <motion.div
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.15 }}
               className="glass-panel"
               style={{
-                padding: 24, display: 'flex', flexDirection: 'column', gap: 16,
+                padding: 20, display: 'flex', flexDirection: 'column', gap: 12,
                 background: 'rgba(10,5,15,0.85)',
                 border: '1.5px solid rgba(120,40,60,0.25)',
               }}
             >
-              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 16, letterSpacing: '0.08em', color: '#ff4455' }}>
-                MATCH RECOGNITIONS
+              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 13, letterSpacing: '0.08em', color: '#ff4455' }}>
+                MAFIA EXECUTIONS
               </h3>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div style={{ background: 'rgba(255,255,255,0.02)', padding: 12, borderRadius: 8, border: '1px solid rgba(255,255,255,0.04)' }}>
-                  <span style={{ fontSize: 10, color: 'var(--text-muted)', display: 'block' }}>TOTAL MATCHES</span>
-                  <span style={{ fontSize: 20, fontWeight: 800, color: '#fff' }}>{stats.matchesPlayed}</span>
-                </div>
-                <div style={{ background: 'rgba(255,255,255,0.02)', padding: 12, borderRadius: 8, border: '1px solid rgba(255,255,255,0.04)' }}>
-                  <span style={{ fontSize: 10, color: 'var(--text-muted)', display: 'block' }}>WIN RATE</span>
-                  <span style={{ fontSize: 20, fontWeight: 800, color: '#5ad15a' }}>{winRate}%</span>
-                </div>
-                <div style={{ background: 'rgba(255,255,255,0.02)', padding: 12, borderRadius: 8, border: '1px solid rgba(255,255,255,0.04)' }}>
-                  <span style={{ fontSize: 10, color: 'var(--text-muted)', display: 'block' }}>MAFIA KILLS</span>
-                  <span style={{ fontSize: 20, fontWeight: 800, color: '#ff3344' }}>{stats.mafiaKills}</span>
-                </div>
-                <div style={{ background: 'rgba(255,255,255,0.02)', padding: 12, borderRadius: 8, border: '1px solid rgba(255,255,255,0.04)' }}>
-                  <span style={{ fontSize: 10, color: 'var(--text-muted)', display: 'block' }}>W/L RECORDS</span>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: '#eee', display: 'block', marginTop: 4 }}>
-                    {stats.wins}W / {stats.losses}L
-                  </span>
-                </div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                <span style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 900, color: '#ff3344' }}>
+                  {stats.mafiaKills}
+                </span>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>CONFIRMED KILLS</span>
               </div>
-
-              {/* Favourite Role Hook */}
-              <div style={{
-                background: 'linear-gradient(90deg, rgba(200,30,50,0.1), transparent)',
-                padding: '12px 16px', borderRadius: 8,
-                borderLeft: '4px solid #ff3344',
-                display: 'flex', alignItems: 'center', gap: 12,
-              }}>
-                <ShieldAlert size={24} color="#ff3344" style={{ flexShrink: 0 }} />
-                <div>
-                  <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase' }}>FAVOURITE ROLE</span>
-                  <p style={{ fontSize: 13, fontWeight: 700, color: '#ff4455' }}>
-                    "{stats.favRoleDesc}"
-                  </p>
-                </div>
-              </div>
+              <span style={{ fontSize: 10.5, color: 'var(--text-muted)', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 8 }}>
+                Favorite Archetype: <strong style={{ color: '#eee' }}>{stats.favRoleDesc}</strong>
+              </span>
             </motion.div>
 
-            {/* Rank Panel */}
+            {/* Rank Trophies */}
             <motion.div
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.2 }}
               className="glass-panel"
               style={{
-                padding: 24, display: 'flex', flexDirection: 'column', gap: 16,
+                padding: 20, display: 'flex', flexDirection: 'column', gap: 10,
                 background: 'rgba(10,5,15,0.85)',
                 border: '1.5px solid rgba(120,40,60,0.25)',
               }}
             >
-              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 16, letterSpacing: '0.08em', color: '#ff4455' }}>
+              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 13, letterSpacing: '0.08em', color: '#ff4455' }}>
                 LEAGUE STANDINGS
               </h3>
 
@@ -569,7 +535,6 @@ export default function ProfilePage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {ACHIEVEMENTS_CONFIG.map((ach, i) => {
                 const IconComp = ach.icon;
-                // unlocked = this key exists in the user's achievements array from DB
                 const unlocked = (profile?.achievements || []).includes(ach.key);
                 return (
                   <div
@@ -601,7 +566,6 @@ export default function ProfilePage() {
                         <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                           {ach.desc}
                         </span>
-                        {/* Show how-to hint only when locked */}
                         {!unlocked && (
                           <span style={{ fontSize: 10, color: '#555', fontStyle: 'italic', marginTop: 1 }}>
                             💡 {ach.hint}

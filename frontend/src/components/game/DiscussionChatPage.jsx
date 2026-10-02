@@ -375,6 +375,7 @@ export default function DiscussionChatPage({
   myName,
   myColor,
   myRole,
+  isAlive = true,
   timer,
   day,
   lockedMessage,
@@ -485,7 +486,7 @@ export default function DiscussionChatPage({
     phaseDescText = "ELIMINATION RESULTS";
   }
 
-  const amIAlive = discussionPlayers.some(p => p.id === myId && p.isAlive !== false);
+  const amIAlive = isAlive && (discussionPlayers.length === 0 || discussionPlayers.some(p => p.id === myId && p.isAlive !== false));
 
   return (
     <>

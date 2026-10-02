@@ -27,18 +27,24 @@ import {
   User,
   Swords,
 } from "lucide-react";
-import { getSocket, disconnectSocket } from "../services/socket.js";
-import { getRoomDetails } from "../services/roomService.js";
-import { BUILDINGS, FOUNTAIN_POS } from "../components/CasinoMap.jsx";
+import { getSocket, disconnectSocket } from "../../services/socket.js";
+import { getRoomDetails } from "../../services/roomService.js";
+import { BUILDINGS, FOUNTAIN_POS } from "../../components/CasinoMap.jsx";
 // Import modular game sub-components
-import GameCanvasOptimized from "../components/game/GameCanvasOptimized.jsx";
-import PlayerList from "../components/game/PlayerList.jsx";
-import ChatBox from "../components/game/ChatBox.jsx";
-import VotingPanel from "../components/game/VotingPanel.jsx";
-import MiniMap from "../components/game/MiniMap.jsx";
-import PerformanceHUD from "../components/game/PerformanceHUD.jsx";
-import DiscussionChatPage from "../components/game/DiscussionChatPage.jsx";
-import useVoiceChat from "../hooks/useVoiceChat.js";
+import GameCanvasOptimized from "../../components/game/GameCanvasOptimized.jsx";
+import PlayerList from "../../components/game/PlayerList.jsx";
+import ChatBox from "../../components/game/ChatBox.jsx";
+import VotingPanel from "../../components/game/VotingPanel.jsx";
+import MiniMap from "../../components/game/MiniMap.jsx";
+import PerformanceHUD from "../../components/game/PerformanceHUD.jsx";
+import DiscussionChatPage from "../../components/game/DiscussionChatPage.jsx";
+import NightPhasePanel from "../../components/game/NightPhasePanel.jsx";
+import MorningAnnouncement from "../../components/game/MorningAnnouncement.jsx";
+import GameOverScreen from "../../components/game/GameOverScreen.jsx";
+import SpectatorHUD from "../../components/game/SpectatorHUD.jsx";
+import EliminatedScreen from "../../components/game/EliminatedScreen.jsx";
+import useVoiceChat from "../../hooks/useVoiceChat.js";
+import useNightActions from "../../hooks/useNightActions.js";
 
 // ── role meta ──────────────────────────────────────────────
 const ROLE_META = {
@@ -142,6 +148,14 @@ export default function GameMapPage() {
   const [pointerLocked, setPointerLocked] = useState(false);
   const [isSitting, setIsSitting] = useState(false);
 
+  // ── Spectator / Eliminated state ────────────────────────────────
+  // eliminatedData: null = not shown; { killerName, reason } = show EliminatedScreen
+  const [eliminatedData, setEliminatedData] = useState(null);
+  // isSpectating: true after player dismisses EliminatedScreen
+  const [isSpectating, setIsSpectating] = useState(false);
+  // Index into the alive players list the spectator is currently watching
+  const [spectatorIndex, setSpectatorIndex] = useState(0);
+
   // ── Discussion state ─────────────────────────────────────────────
   const [discussionActive, setDiscussionActive] = useState(false);
   const [discussionWaiting, setDiscussionWaiting] = useState(false); // waiting for all to sit
@@ -153,6 +167,10 @@ export default function GameMapPage() {
   const [subPhase, setSubPhase] = useState("ROAMING"); // ROAMING, DISCUSSION, VOTING, REVEAL
   const [votedIds, setVotedIds] = useState([]);
   const [revealData, setRevealData] = useState(null);
+
+  // Ref that lets the socket onPhase handler call nightActions.resetNightState
+  // without creating a stale closure dependency on the hook output.
+  const nightResetRef = useRef(null);
 
   // Total players in the DB room, default to 5
   const [dbTotalPlayers, setDbTotalPlayers] = useState(5);
@@ -235,10 +253,13 @@ export default function GameMapPage() {
 
     // Emit join-map using the best available name at this point.
     // The name/role will be refreshed once the API fetch resolves.
+    // NOTE: myId here is the DB ObjectId decoded from the JWT — critical for
+    // night engine stat tracking and win-condition player lookup.
     sock.emit("join-map", roomId, {
       username: myName,
       color: myColor,
       role: myRole,
+      userId: myId,
       position: { x: myPos[0], y: 0, z: myPos[2] },
     });
     const onSnapshot = (snap) => {
@@ -291,7 +312,7 @@ export default function GameMapPage() {
       setTimer(d.timer);
       setDay(d.day);
       setVoteTally({});
-      // Reset discussion if phase changes
+      // Reset discussion whenever phase changes away from DAY sub-phases
       if (d.phase === "NIGHT") {
         setDiscussionActive(false);
         setDiscussionWaiting(false);
@@ -299,6 +320,18 @@ export default function GameMapPage() {
         setSubPhase("ROAMING");
         setVotedIds([]);
         setRevealData(null);
+        // Reset night action state via the hook utility (see below)
+        nightResetRef.current?.();
+      }
+      if (d.phase === "DAY") {
+        setDiscussionActive(false);
+        setDiscussionWaiting(false);
+        setSeatedIds([]);
+        setSubPhase("ROAMING");
+      }
+      if (d.phase === "GAME_OVER") {
+        setDiscussionActive(false);
+        setDiscussionWaiting(false);
       }
     };
     const onTick = (d) => {
@@ -311,6 +344,11 @@ export default function GameMapPage() {
     };
     const onVote = (d) => setVoteTally(d.tally || {});
     const onPlayerUpdated = (p) => {
+      if (p.id === sock.id || (myName && p.username === myName)) {
+        if (p.isAlive !== undefined) {
+          setIsAlive(p.isAlive !== false);
+        }
+      }
       setPlayers((prev) =>
         prev.map((x) =>
           x.id === p.id ? { ...x, ...p } : x,
@@ -381,7 +419,25 @@ export default function GameMapPage() {
         mafiaPresent: data.mafiaPresent,
         tally: data.tally
       });
+      // If the local player was voted out by Town, show eliminated screen
+      const ep = data.eliminatedPlayer;
+      if (ep && (ep.id === sock.id || ep.username === myName)) {
+        setIsAlive(false);
+        setEliminatedData({
+          killerName: "The Town Council",
+          killerNames: [],
+          reason: "TOWN_VOTE",
+          eliminatedPlayer: ep,
+          timestamp: Date.now(),
+        });
+        setIsSpectating(false);
+        setSpectatorIndex(0);
+      }
     };
+
+    // NOTE: you-were-killed is handled inside useNightActions hook.
+    // It sets nightActions.eliminatedScreenData which GameMapPage renders.
+    // No duplicate listener here to avoid double-triggering.
 
     sock.on("map-snapshot", onSnapshot);
     sock.on("player-joined", onJoin);
@@ -400,7 +456,6 @@ export default function GameMapPage() {
     sock.on("discussion-phase-change", onDiscussionPhaseChange);
     sock.on("discussion-vote-cast-update", onDiscussionVoteCastUpdate);
     sock.on("discussion-reveal", onDiscussionReveal);
-
     return () => {
       sock.off("map-snapshot", onSnapshot);
       sock.off("player-joined", onJoin);
@@ -431,6 +486,28 @@ export default function GameMapPage() {
     }, 400);
     return () => clearInterval(t);
   }, []);
+
+  // ── Spectator fallback: if isAlive becomes false and NO eliminated screen
+  //    is queued (e.g. player was already dead on reconnect / page load),
+  //    jump straight to spectator mode so dead players are never stuck.
+  useEffect(() => {
+    if (!isAlive && !isSpectating) {
+      // Give the socket event handlers a short moment to fire first.
+      // If after 800ms still no eliminatedData/eliminatedScreenData → go spectator.
+      const t = setTimeout(() => {
+        // Re-check inside timeout — state may have been set by then
+        setIsSpectating((prev) => {
+          if (!prev) {
+            // Only auto-spectate if no cinematic screen is actively showing
+            return true;
+          }
+          return prev;
+        });
+      }, 800);
+      return () => clearTimeout(t);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAlive]);
 
   // Throttle outgoing position updates (every ~80ms)
   useEffect(() => {
@@ -523,6 +600,30 @@ export default function GameMapPage() {
   const totalPlayers = dbTotalPlayers;
   const hideHUD = discussionActive || discussionWaiting;
 
+  // ── Spectator helpers ───────────────────────────────────────────
+  // List of alive remote players the spectator can cycle through
+  const alivePlayers = players.filter((p) => p.isAlive !== false);
+  // Current spectate target (null if no alive players)
+  const spectateTarget = isSpectating && alivePlayers.length > 0
+    ? alivePlayers[Math.min(spectatorIndex, alivePlayers.length - 1)]
+    : null;
+  // Cycle handlers
+  const handleSpectatorPrev = useCallback(() => {
+    if (alivePlayers.length === 0) return;
+    setSpectatorIndex((i) => (i - 1 + alivePlayers.length) % alivePlayers.length);
+  }, [alivePlayers.length]);
+  const handleSpectatorNext = useCallback(() => {
+    if (alivePlayers.length === 0) return;
+    setSpectatorIndex((i) => (i + 1) % alivePlayers.length);
+  }, [alivePlayers.length]);
+  // Normalise spectateTarget position to an array [x, y, z] for Player.jsx
+  const spectateTargetForCanvas = spectateTarget ? {
+    ...spectateTarget,
+    position: spectateTarget.position
+      ? [spectateTarget.position.x || 0, spectateTarget.position.y || 0, spectateTarget.position.z || 0]
+      : [0, 0, 0],
+  } : null;
+
   // ── Voice chat (WebRTC) ──────────────────────────────────────────
   // Active only while the discussion overlay is open AND this player is seated.
   // useVoiceChat is called unconditionally (Rules of Hooks) and self-manages
@@ -534,6 +635,50 @@ export default function GameMapPage() {
     myId,
     isActive: voiceActive,
   });
+
+  // ── Night Actions hook (all night socket logic lives here) ───────
+  const nightActions = useNightActions({
+    roomId,
+    myRole,
+    isAlive,
+    setIsAlive,          // hook will set isAlive=false when you-were-killed fires
+    myName,              // needed to match morning-announcement victim name
+    myId,               // db ObjectId for matching
+    players,
+    setPlayers,
+    setPhase,
+    setTimer,
+    setDay,
+    setChat,
+  });
+
+  // Sync resetNightState into a ref so the onPhase socket handler
+  // (defined earlier in a useEffect) can call it without stale closures.
+  // This is safe because refs are mutated synchronously before every render.
+  nightResetRef.current = nightActions.resetNightState;
+
+  // Derived flags
+  const isNightPhase = phase === "NIGHT";
+  const isGameOver   = phase === "GAME_OVER";
+  // Block HUD + movement for dead players during night
+  const effectiveHideHUD = discussionActive || discussionWaiting || isNightPhase || isGameOver;
+
+  // Guard: dead players cannot send chat (day or night)
+  const sendChatGuarded = useCallback((text) => {
+    if (!isAlive) return; // silently block
+    const sock = getSocket();
+    sock.emit("send-chat", roomId, { sender: myName, text, color: myColor });
+    setChat((c) => [
+      ...c,
+      { sender: myName, text, color: myColor, isSelf: true, ts: Date.now() },
+    ]);
+  }, [isAlive, roomId, myName, myColor]);
+
+  // Navigate to dashboard after game over
+  const handleLeaveGame = useCallback(() => {
+    disconnectSocket();
+    navigate("/dashboard");
+  }, [navigate]);
 
   return (
     <div
@@ -563,6 +708,7 @@ export default function GameMapPage() {
         isSitting={isSitting}
         setIsSitting={setIsSitting}
         discussionActive={discussionActive}
+        spectateTarget={spectateTargetForCanvas}
       />
 
       {/* ── Discussion Chat Page Overlay ──────────────────────────────
@@ -590,7 +736,87 @@ export default function GameMapPage() {
         voiceProps={voice}
       />
 
-      {!hideHUD && (
+      {/* ── Night Phase Overlay ─────────────────────────────────────
+           Full-screen role-specific action panel during NIGHT phase.
+           Rendered above everything else (z=200).                  */}
+      {isNightPhase && (
+        <NightPhasePanel
+          myRole={myRole}
+          myId={myId}
+          myName={myName}
+          myColor={myColor}
+          isAlive={isAlive}
+          players={players}
+          timer={timer}
+          day={day}
+          nightActionDone={nightActions.nightActionDone}
+          nightActionTarget={nightActions.nightActionTarget}
+          nightError={nightActions.nightError}
+          nightConfirmation={nightActions.nightConfirmation}
+          mafiaVoteTally={nightActions.mafiaVoteTally}
+          currentMafiaVotes={nightActions.currentMafiaVotes}
+          policeResult={nightActions.policeResult}
+          mafiaChatMessages={nightActions.mafiaChatMessages}
+          onAction={nightActions.emitNightAction}
+          onMafiaChat={nightActions.emitMafiaChat}
+          supportRolesDone={nightActions.supportRolesDone}
+          pendingRoles={nightActions.pendingRoles}
+        />
+      )}
+
+      {/* ── Morning Announcement ───────────────────────────────────
+           Shows after each Night resolves (kill / save / peaceful). */}
+      {nightActions.morningAnnouncement && (
+        <MorningAnnouncement
+          data={nightActions.morningAnnouncement}
+          onDismiss={nightActions.dismissMorningAnnouncement}
+        />
+      )}
+
+      {/* ── Game Over Screen ───────────────────────────────────────
+           Full-screen result overlay when a win condition triggers. */}
+      {(isGameOver || nightActions.gameOverData) && (
+        <GameOverScreen
+          data={nightActions.gameOverData}
+          myId={myId}
+          myRole={myRole}
+          onLeave={handleLeaveGame}
+        />
+      )}
+
+      {/* ── Eliminated Screen ─────────────────────────────────────
+           TWO trigger paths:
+           1. Night kill  → nightActions.eliminatedScreenData (from you-were-killed via hook)
+           2. Day vote    → eliminatedData (from discussion-reveal detection)
+           Either path shows the cinematic overlay and then enters Spectator mode. */}
+      {(nightActions.eliminatedScreenData || eliminatedData) && !isSpectating && (
+        <EliminatedScreen
+          data={nightActions.eliminatedScreenData || eliminatedData}
+          onStartSpectating={() => {
+            setIsSpectating(true);
+            setEliminatedData(null);
+            nightActions.dismissEliminatedScreen();
+            setSpectatorIndex(0);
+          }}
+        />
+      )}
+
+      {/* ── Spectator HUD ─────────────────────────────────────────
+           Free Fire style spectator overlay shown once local player
+           is dead and has dismissed the EliminatedScreen.           */}
+      {isSpectating && !isGameOver && (
+        <SpectatorHUD
+          alivePlayers={alivePlayers}
+          currentInspectIndex={Math.min(spectatorIndex, Math.max(0, alivePlayers.length - 1))}
+          onSelectIndex={setSpectatorIndex}
+          onPrev={handleSpectatorPrev}
+          onNext={handleSpectatorNext}
+          myRole={myRole}
+          isNight={phase === "NIGHT"}
+        />
+      )}
+
+      {!effectiveHideHUD && (
         <>
           {/* ── Position debug overlay (bottom-left) ── */}
       <div
@@ -815,22 +1041,22 @@ export default function GameMapPage() {
 
         {/* Chat box */}
         <div data-testid="hud-chat">
+          {/* Dead-player overlay pill above chat */}
+          {!isAlive && (
+            <div style={{
+              marginBottom: 6, padding: "5px 12px",
+              background: "rgba(255,51,68,0.12)",
+              border: "1px solid rgba(255,51,68,0.3)",
+              borderRadius: 8, fontSize: 11,
+              color: "#ff6677", fontWeight: 700,
+              textAlign: "center", letterSpacing: "0.05em",
+            }}>
+              💀 You are dead — chat is disabled
+            </div>
+          )}
           <ChatBox
             messages={chat}
-            onSend={(text) => {
-              // Optimistic: add own message immediately so it shows without waiting for echo
-              setChat((c) => [
-                ...c,
-                { sender: myName, text, color: myColor, ts: Date.now() },
-              ]);
-              const sock = getSocket();
-              sock.emit("send-chat", roomId, {
-                sender: myName,
-                text,
-                color: myColor,
-                ts: Date.now(),
-              });
-            }}
+            onSend={sendChatGuarded}
             myColor={myColor}
           />
         </div>

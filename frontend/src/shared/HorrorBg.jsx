@@ -32,9 +32,12 @@ export default function HorrorBg() {
 
     const draw = () => {
       frame++;
-      if (frame % 3 !== 0) { raf = requestAnimationFrame(draw); return; } // 20fps grain
       const W = canvas.width  = canvas.offsetWidth;
       const H = canvas.height = canvas.offsetHeight;
+      if (!W || !H || W <= 0 || H <= 0) {
+        raf = requestAnimationFrame(draw);
+        return;
+      }
       const img = ctx.createImageData(W, H);
       const data = img.data;
       for (let i = 0; i < data.length; i += 4) {
