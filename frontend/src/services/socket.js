@@ -14,7 +14,7 @@ export function getSocket() {
 
   const token = localStorage.getItem('token');
 
-  socket = io('http://localhost:5000', {
+  socket =  io(import.meta.env.VITE_API_URL, {
     transports: ['websocket'],
     auth: { token },
     autoConnect: true,

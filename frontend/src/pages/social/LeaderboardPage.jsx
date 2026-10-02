@@ -31,7 +31,7 @@ export default function LeaderboardPage() {
   const userId = localStorage.getItem("userId");
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/leaderboard")
+    fetch(`${import.meta.env.VITE_API_URL}/api/leaderboard`)
       .then((res) => res.json())
       .then((data) => {
         setPlayers(data);

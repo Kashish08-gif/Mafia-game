@@ -3,7 +3,7 @@ import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UserPlus, UserCheck, UserX, Search, Sparkles, Trophy, Users, Check, Clock, AlertTriangle, RefreshCw } from 'lucide-react';
 
-const API = "http://localhost:5000";
+const API =  `${import.meta.env.VITE_API_URL}/api`;
 
 // Smart avatar: renders <img> for URLs, emoji <span> for everything else
 const isUrl = (val) => val && (val.startsWith('http') || val.startsWith('/') || val.startsWith('data:image'));

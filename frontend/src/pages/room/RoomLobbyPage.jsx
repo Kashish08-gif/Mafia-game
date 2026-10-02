@@ -41,7 +41,7 @@ export default function RoomLobbyPage() {
     async function loadFriends() {
       try {
         const token = localStorage.getItem("token");
-        const res = await axios.get("http://localhost:5000/api/friends/list", {
+        const res =await axios.get(`${import.meta.env.VITE_API_URL}/api/friends/list`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setRealFriends(res.data || []);

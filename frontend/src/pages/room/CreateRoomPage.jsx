@@ -36,7 +36,7 @@ export default function CreateRoomPage() {
   useEffect(() => {
     async function loadFriends() {
       try {
-        const res = await axios.get("http://localhost:5000/api/friends/list", {
+        const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/friends/list`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setRealFriends(res.data || []);

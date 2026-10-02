@@ -219,7 +219,7 @@ export default function ProfilePage() {
       }
 
       const res = await axios.put(
-        `http://localhost:5000/api/profile`,
+       `${import.meta.env.VITE_API_URL}/api/profile`,
         formData,
         {
           headers: {
