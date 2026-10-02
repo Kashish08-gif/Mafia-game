@@ -23,6 +23,19 @@ export const getAliveRoleSockets = (roomState, roleName) => {
 };
 
 /**
+ * Helper: checks if Police AND Doctor have submitted their night actions.
+ * This must be true before Mafia's kill can be processed.
+ */
+export const checkSupportRolesDone = (roomState) => {
+  if (!roomState.nightActions) return true; // no actions state = no support roles
+  const aliveDoctors = getAliveRoleSockets(roomState, "doctor");
+  const alivePolice  = getAliveRoleSockets(roomState, "police");
+  const doctorDone = aliveDoctors.length === 0 || !!roomState.nightActions.doctorTarget;
+  const policeDone = alivePolice.length === 0  || !!roomState.nightActions.policeTarget;
+  return doctorDone && policeDone;
+};
+
+/**
  * Handles Mafia target vote during Night phase.
  */
 export const handleMafiaVote = (roomState, socket, targetId, io, roomId) => {
@@ -41,8 +54,11 @@ export const handleMafiaVote = (roomState, socket, targetId, io, roomId) => {
     roomState.nightActions = createNightState();
   }
 
-  // Record or update vote
+  // Record or update vote (always allowed — Mafia can express preference anytime)
   roomState.nightActions.mafiaVotes[socket.id] = targetId;
+
+  // Check if support roles (Doctor + Police) have acted yet
+  const supportDone = checkSupportRolesDone(roomState);
 
   // Calculate current mafia tally
   const tally = {};
@@ -52,6 +68,15 @@ export const handleMafiaVote = (roomState, socket, targetId, io, roomId) => {
     }
   });
 
+  // Build pending roles list for UI display
+  const pendingRoles = [];
+  if (!supportDone) {
+    const aliveDoctors = getAliveRoleSockets(roomState, "doctor");
+    const alivePolice  = getAliveRoleSockets(roomState, "police");
+    if (aliveDoctors.length > 0 && !roomState.nightActions.doctorTarget) pendingRoles.push("Doctor");
+    if (alivePolice.length > 0  && !roomState.nightActions.policeTarget)  pendingRoles.push("Police");
+  }
+
   // Broadcast tally strictly to all alive Mafia members
   const aliveMafias = getAliveRoleSockets(roomState, "mafia");
   aliveMafias.forEach((m) => {
@@ -60,6 +85,8 @@ export const handleMafiaVote = (roomState, socket, targetId, io, roomId) => {
       tally,
       voterId: socket.id,
       targetId,
+      supportRolesDone: supportDone,
+      pendingRoles,
     });
   });
 
@@ -67,9 +94,11 @@ export const handleMafiaVote = (roomState, socket, targetId, io, roomId) => {
     actionType: "KILL",
     targetId,
     timestamp: Date.now(),
+    supportRolesDone: supportDone,
+    pendingRoles,
   });
 
-  console.log(`[Night:Mafia] ${player.username} (${socket.id}) voted to kill target ${targetId}`);
+  console.log(`[Night:Mafia] ${player.username} (${socket.id}) voted to kill target ${targetId}. Support roles done: ${supportDone}`);
 };
 
 /**
@@ -105,6 +134,19 @@ export const handleDoctorHeal = (roomState, socket, targetId, io, roomId) => {
   });
 
   console.log(`[Night:Doctor] ${player.username} (${socket.id}) chose to protect ${targetName} (${targetId})`);
+
+  // Notify all alive Mafia that Doctor has acted (so they know kill can proceed if police is also done)
+  const supportDone = checkSupportRolesDone(roomState);
+  if (supportDone) {
+    const aliveMafias = getAliveRoleSockets(roomState, "mafia");
+    aliveMafias.forEach((m) => {
+      io.to(m.id).emit("night-support-roles-ready", {
+        message: "Doctor & Police have acted. Your kill vote is now finalized.",
+        timestamp: Date.now(),
+      });
+    });
+    console.log(`[Night:Doctor] Support roles done after Doctor acted — notified Mafia.`);
+  }
 };
 
 /**
@@ -156,6 +198,19 @@ export const handlePoliceInspect = (roomState, socket, targetId, io, roomId) => 
   });
 
   console.log(`[Night:Police] ${player.username} inspected ${targetPlayer.username} -> Alignment: ${result.alignment}`);
+
+  // Notify all alive Mafia that Police has acted
+  const supportDone = checkSupportRolesDone(roomState);
+  if (supportDone) {
+    const aliveMafias = getAliveRoleSockets(roomState, "mafia");
+    aliveMafias.forEach((m) => {
+      io.to(m.id).emit("night-support-roles-ready", {
+        message: "Doctor & Police have acted. Your kill vote is now finalized.",
+        timestamp: Date.now(),
+      });
+    });
+    console.log(`[Night:Police] Support roles done after Police acted — notified Mafia.`);
+  }
 };
 
 /**
@@ -267,7 +322,22 @@ export const resolveNightPhase = async (roomId, roomState, io) => {
           role: victim.role,
         };
 
-        console.log(`[Night:Resolve] Victim ${victim.username} (${victim.id}) was ELIMINATED by Mafia.`);
+        // Find mafia members who participated in kill or are alive mafias
+        const aliveMafias = getAliveRoleSockets(roomState, "mafia");
+        const killerNames = aliveMafias.map((m) => m.username);
+        const killerNamesStr = killerNames.length > 0 ? killerNames.join(", ") : "Mafia";
+
+        // Privately notify victim of assassination with Mafia killer info
+        io.to(victim.id).emit("you-were-killed", {
+          killerName: killerNamesStr,
+          killerNames: killerNames,
+          mafiaCount: aliveMafias.length,
+          eliminatedPlayer,
+          reason: "MAFIA_KILL",
+          timestamp: Date.now(),
+        });
+
+        console.log(`[Night:Resolve] Emitted you-were-killed to ${victim.username} (${victim.id}) with killer ${killerNamesStr}`);
 
         // Persist elimination to MongoDB
         try {

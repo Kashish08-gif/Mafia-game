@@ -62,6 +62,7 @@ export default function Player({
   players = [],
   discussionActive = false,
   isAlive = true,
+  spectateTarget = null,
 }) {
   const { camera, gl } = useThree();
 
@@ -368,21 +369,38 @@ export default function Player({
       prevYaw.current = yaw.current;
     }
 
-    // ── Smooth 3rd-person camera ─────────────────────────────────
+    // ── Smooth 3rd-person camera (Local Player or Spectated Target) ──────
     const cp = Math.cos(pitch.current);
     const sp = Math.sin(pitch.current);
 
+    // Target coordinates: spectateTarget if dead, otherwise local position
+    let targetX = p[0];
+    let targetZ = p[2];
+    let targetY = 0;
+
+    if (!isAlive && spectateTarget) {
+      if (Array.isArray(spectateTarget.position)) {
+        targetX = spectateTarget.position[0];
+        targetY = spectateTarget.position[1] || 0;
+        targetZ = spectateTarget.position[2];
+      } else if (spectateTarget.position) {
+        targetX = spectateTarget.position.x ?? targetX;
+        targetY = spectateTarget.position.y ?? 0;
+        targetZ = spectateTarget.position.z ?? targetZ;
+      }
+    }
+
     camTarget.current.set(
-      p[0] - Math.sin(yaw.current) * CAM_DIST * cp,
-      CAM_HEIGHT_BASE + sp * CAM_DIST * 0.6,
-      p[2] - Math.cos(yaw.current) * CAM_DIST * cp,
+      targetX - Math.sin(yaw.current) * CAM_DIST * cp,
+      CAM_HEIGHT_BASE + targetY + sp * CAM_DIST * 0.6,
+      targetZ - Math.cos(yaw.current) * CAM_DIST * cp,
     );
     camera.position.lerp(camTarget.current, Math.min(1, delta * CAM_LERP));
 
     lookTmp.current.set(
-      p[0] + Math.sin(yaw.current) * 0.5,
-      1.4  - sp * 2.0,
-      p[2] + Math.cos(yaw.current) * 0.5,
+      targetX + Math.sin(yaw.current) * 0.5,
+      targetY + 1.4 - sp * 2.0,
+      targetZ + Math.cos(yaw.current) * 0.5,
     );
     lookTgt.current.lerp(lookTmp.current, Math.min(1, delta * LOOK_LERP));
     camera.lookAt(lookTgt.current);

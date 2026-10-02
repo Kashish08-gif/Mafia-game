@@ -28,6 +28,9 @@ export default function useNightActions({
   roomId,
   myRole, // "mafia" | "doctor" | "police" | "villager"
   isAlive,
+  setIsAlive,
+  myName,
+  myId,
   players, // live remote player list (from GameMapPage state)
   setPlayers, // setter so we can mark isAlive: false on game-over reveal
   setPhase,
@@ -49,8 +52,16 @@ export default function useNightActions({
   // Police-specific
   const [policeResult, setPoliceResult] = useState(null); // { targetUsername, alignment, isMafia }
 
+  // Night sync — tracks whether support roles (Doctor + Police) have acted.
+  // Mafia players see a "waiting" indicator until this becomes true.
+  const [supportRolesDone, setSupportRolesDone] = useState(true); // default true (non-mafia don't care)
+  const [pendingRoles, setPendingRoles] = useState([]); // ["Doctor", "Police"] etc.
+
   // Morning announcement after night resolution
   const [morningAnnouncement, setMorningAnnouncement] = useState(null); // null | { eliminatedPlayer, isSaved, day }
+
+  // Eliminated screen data (when local player is killed)
+  const [eliminatedScreenData, setEliminatedScreenData] = useState(null);
 
   // Game over
   const [gameOverData, setGameOverData] = useState(null); // null | { winner, reason, players }
@@ -74,17 +85,31 @@ export default function useNightActions({
     setCurrentMafiaVotes({});
     setPoliceResult(null);
     setMorningAnnouncement(null);
+    setSupportRolesDone(true);
+    setPendingRoles([]);
   }, []);
 
   // ── Socket listener registration ─────────────────────────────
   useEffect(() => {
     const sock = getSocket();
 
+    // ── Local player killed event (private event from server) ────
+    const onYouWereKilled = (data) => {
+      console.log("[Night] YOU WERE KILLED:", data);
+      setIsAlive?.(false);
+      setEliminatedScreenData(data);
+    };
+
     // ── Night action confirmed (server echo) ──────────────────
     const onActionConfirmed = (data) => {
       setNightConfirmation(data);
       setNightActionDone(true);
       setNightActionTarget(data.targetId || null);
+      // Update support-roles status if Mafia action confirmation contains it
+      if (typeof data.supportRolesDone === "boolean") {
+        setSupportRolesDone(data.supportRolesDone);
+        setPendingRoles(data.pendingRoles || []);
+      }
       console.log("[Night] Action confirmed:", data);
     };
 
@@ -98,6 +123,18 @@ export default function useNightActions({
     const onMafiaVotesUpdate = (data) => {
       setMafiaVoteTally(data.tally || {});
       setCurrentMafiaVotes(data.votes || {});
+      // Update support-roles status from server
+      if (typeof data.supportRolesDone === "boolean") {
+        setSupportRolesDone(data.supportRolesDone);
+        setPendingRoles(data.pendingRoles || []);
+      }
+    };
+
+    // ── Support roles ready (Doctor + Police both acted) ──────
+    const onSupportRolesReady = (data) => {
+      setSupportRolesDone(true);
+      setPendingRoles([]);
+      console.log("[Night:Mafia] Support roles ready:", data.message);
     };
 
     // ── Police investigation result (private, only police sees) ─
@@ -118,6 +155,28 @@ export default function useNightActions({
       setNightActionTarget(null);
       setNightConfirmation(null);
       setPoliceResult(null);
+
+      // Check if local player was eliminated
+      if (data?.eliminatedPlayer) {
+        const elName = data.eliminatedPlayer.username;
+        const elId = data.eliminatedPlayer.id;
+        if (elId === sock.id || (myName && elName === myName)) {
+          setIsAlive?.(false);
+          // If we haven't already shown eliminatedScreenData from you-were-killed:
+          setEliminatedScreenData((prev) => prev || {
+            killerName: "The Mafia",
+            reason: "MAFIA_KILL",
+            eliminatedPlayer: data.eliminatedPlayer,
+          });
+        }
+
+        // Update remote players list
+        setPlayers?.((prev) =>
+          prev.map((p) =>
+            p.id === elId || p.username === elName ? { ...p, isAlive: false } : p
+          )
+        );
+      }
       console.log("[Night] Morning announcement:", data);
     };
 
@@ -183,6 +242,7 @@ export default function useNightActions({
       }
     };
 
+    sock.on("you-were-killed", onYouWereKilled);
     sock.on("night-action-confirmed", onActionConfirmed);
     sock.on("night-action-error", onActionError);
     sock.on("night-mafia-votes-update", onMafiaVotesUpdate);
@@ -191,8 +251,10 @@ export default function useNightActions({
     sock.on("morning-announcement", onMorningAnnouncement);
     sock.on("night-resolved", onNightResolved);
     sock.on("game-over", onGameOver);
+    sock.on("night-support-roles-ready", onSupportRolesReady);
 
     return () => {
+      sock.off("you-were-killed", onYouWereKilled);
       sock.off("night-action-confirmed", onActionConfirmed);
       sock.off("night-action-error", onActionError);
       sock.off("night-mafia-votes-update", onMafiaVotesUpdate);
@@ -201,6 +263,7 @@ export default function useNightActions({
       sock.off("morning-announcement", onMorningAnnouncement);
       sock.off("night-resolved", onNightResolved);
       sock.off("game-over", onGameOver);
+      sock.off("night-support-roles-ready", onSupportRolesReady);
       if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -270,6 +333,11 @@ export default function useNightActions({
     setMorningAnnouncement(null);
   }, []);
 
+  // Dismiss eliminated screen
+  const dismissEliminatedScreen = useCallback(() => {
+    setEliminatedScreenData(null);
+  }, []);
+
   // Dismiss game over
   const dismissGameOver = useCallback(() => {
     setGameOverData(null);
@@ -286,7 +354,10 @@ export default function useNightActions({
     currentMafiaVotes,
     policeResult,
     morningAnnouncement,
+    eliminatedScreenData,
     gameOverData,
+    supportRolesDone,
+    pendingRoles,
 
     // Emitters
     emitMafiaVote,
@@ -298,6 +369,7 @@ export default function useNightActions({
     // Utilities
     resetNightState,
     dismissMorningAnnouncement,
+    dismissEliminatedScreen,
     dismissGameOver,
   };
 }

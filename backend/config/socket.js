@@ -210,6 +210,15 @@ export const initializeSocket = (server) => {
                         role: elPlayer.role,
                       };
 
+                      // Privately notify voted-out player
+                      io.to(eliminatedPlayerId).emit("you-were-killed", {
+                        killerName: "Town Majority Vote",
+                        killerNames: ["Town Council"],
+                        eliminatedPlayer,
+                        reason: "VOTED_OUT",
+                        timestamp: Date.now(),
+                      });
+
                       // Update DB playerState to isAlive: false
                       try {
                         const room = await Room.findById(roomId).populate(
@@ -392,6 +401,12 @@ export const initializeSocket = (server) => {
 
     socket.on("cast-vote", (roomId, { targetId }) => {
       if (mapRooms[roomId]) {
+        const voter = mapRooms[roomId].players[socket.id];
+        if (voter && voter.isAlive === false) {
+          socket.emit("vote-error", { message: "Dead players cannot vote." });
+          return;
+        }
+
         if (!mapRooms[roomId].votes) {
           mapRooms[roomId].votes = {};
         }
@@ -408,6 +423,26 @@ export const initializeSocket = (server) => {
     });
 
     socket.on("send-chat", (roomId, messageData) => {
+      if (!mapRooms[roomId]) return;
+      const sender = mapRooms[roomId].players[socket.id];
+      const isDead = sender && sender.isAlive === false;
+
+      if (isDead) {
+        // Ghost chat: strictly broadcast only to dead players / spectators
+        Object.values(mapRooms[roomId].players).forEach((p) => {
+          if (p.isAlive === false) {
+            io.to(p.id).emit("receive-chat", {
+              id: socket.id,
+              ...messageData,
+              sender: `👻 ${messageData.sender || "Ghost"} (Dead)`,
+              isGhost: true,
+              color: "#a0a8b9",
+            });
+          }
+        });
+        return;
+      }
+
       socket.to(roomId).emit("receive-chat", { id: socket.id, ...messageData });
     });
 
@@ -472,17 +507,42 @@ export const initializeSocket = (server) => {
     // ── Discussion Chat ──────────────────────────────────────────────
     socket.on("discussion-send", (roomId, messageData) => {
       if (!mapRooms[roomId]) return;
+      const sender = mapRooms[roomId].players[socket.id];
+      const isDead = sender && sender.isAlive === false;
+
       const payload = {
         id: socket.id,
         ...messageData,
         ts: Date.now(),
       };
+
+      if (isDead) {
+        // Only deliver ghost discussion chat to other dead players
+        Object.values(mapRooms[roomId].players).forEach((p) => {
+          if (p.isAlive === false) {
+            io.to(p.id).emit("discussion-receive", {
+              ...payload,
+              sender: `👻 ${messageData.sender || "Ghost"} (Dead)`,
+              isGhost: true,
+            });
+          }
+        });
+        return;
+      }
+
       socket.to(roomId).emit("discussion-receive", payload);
     });
 
     // ── Player Sit / Stand at Discussion Table ───────────────────────
     socket.on("player-sit", async (roomId, { username }) => {
       if (!mapRooms[roomId]) return;
+      const player = mapRooms[roomId].players[socket.id];
+      if (player && player.isAlive === false) {
+        socket.emit("discussion-locked", {
+          message: "Spectators cannot sit at the discussion table.",
+        });
+        return;
+      }
 
       mapRooms[roomId].sittingPlayers.add(socket.id);
       mapRooms[roomId].players[socket.id].sitting = true;
@@ -579,6 +639,12 @@ export const initializeSocket = (server) => {
     socket.on("discussion-cast-vote", (roomId, { targetId }) => {
       if (!mapRooms[roomId] || !mapRooms[roomId].discussionActive) return;
       if (mapRooms[roomId].subPhase !== "VOTING") return;
+
+      const voter = mapRooms[roomId].players[socket.id];
+      if (voter && voter.isAlive === false) {
+        socket.emit("vote-error", { message: "Dead players cannot vote." });
+        return;
+      }
 
       mapRooms[roomId].votes[socket.id] = targetId;
 

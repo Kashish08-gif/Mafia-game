@@ -288,6 +288,7 @@ export default function GameScene({
   isSitting = false,
   setIsSitting,
   discussionActive = false,
+  spectateTarget = null,
 }) {
   const isNight = phase === 'NIGHT';
 
@@ -350,6 +351,7 @@ export default function GameScene({
         players={players}
         discussionActive={discussionActive}
         isAlive={isAlive}
+        spectateTarget={spectateTarget}
       />
 
       {/* Local player avatar */}
