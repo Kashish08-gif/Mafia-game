@@ -22,10 +22,18 @@ import {
 
 const app = express();
 
-app.use(cors());
+app.use(cors({
+  origin: "https://mafia-game-pi.vercel.app",
+  credentials: true
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use("/uploads", express.static(path.join(path.resolve(), "uploads")));
+
+app.use(
+  "/uploads",
+  express.static(path.join(path.resolve(), "uploads"))
+);
 
 app.get("/", (req, res) => {
   return res.status(200).json({
