@@ -3,6 +3,7 @@ import { Trophy, HelpCircle, Flame, Shield, Users } from 'lucide-react';
 import { useState, useEffect } from "react";
 import { LEAGUE_TIERS, getLeagueByTrophies } from '../../shared/leagueConfig.js';
 import LeagueEmblem from '../../components/common/LeagueEmblem.jsx';
+import { API_BASE_URL } from '../../config/api.js';
 
 export default function LeaderboardPage() {
   const [players, setPlayers] = useState([]);
@@ -19,7 +20,7 @@ export default function LeaderboardPage() {
   const userId = localStorage.getItem("userId");
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/leaderboard")
+    fetch(`${API_BASE_URL}/leaderboard`)
       .then((res) => res.json())
       .then((data) => {
         setPlayers(data);

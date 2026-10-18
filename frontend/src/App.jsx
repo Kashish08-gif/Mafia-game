@@ -14,6 +14,7 @@ import {
   LoadingScreen,
   RoleRevealPage,
   GameMapPage,
+  InviteAcceptPage,
 } from "./pages";
 
 export default function App() {
@@ -21,6 +22,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<AuthPage />} />
+        <Route path="/invite/:token" element={<InviteAcceptPage />} />
         <Route path="/loading/:roomId" element={<LoadingScreen />} />
         <Route path="/role-reveal/:roomId" element={<RoleRevealPage />} />
         <Route path="/game/:roomId" element={<GameMapPage />} />
@@ -32,6 +34,7 @@ export default function App() {
           <Route path="/leaderboard" element={<LeaderboardPage />} />
           <Route path="/create-room" element={<CreateRoomPage />} />
           <Route path="/join-room" element={<JoinRoomPage />} />
+          <Route path="/lobby/:roomId" element={<RoomLobbyPage />} />
           <Route path="/store" element={<Navigate to="/dashboard" replace />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

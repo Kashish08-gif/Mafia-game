@@ -1,17 +1,19 @@
 import mongoose from "mongoose";
 
-
 export const dbConnect = async () => {
   const DB_URI = process.env.DB_URI;
   if (!DB_URI) {
-    console.log(`Database Connection UI is not configured in .env`);
+    throw new Error("DB_URI environment variable is missing. Please set DB_URI in your .env or environment configuration.");
   }
   try {
     const connect = await mongoose.connect(DB_URI);
     console.log(
-      `Data base connected successfully: [HOST] ${connect.connection.host}`,
+      `Database connected successfully: [HOST] ${connect.connection.host}`,
     );
+    return connect;
   } catch (error) {
-    console.log(`Error in connecting to Database [ERROR] ${error}`);
+    console.error(`Database connection error: ${error.message}`);
+    throw error;
   }
 };
+

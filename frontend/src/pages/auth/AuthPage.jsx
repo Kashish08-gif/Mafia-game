@@ -548,7 +548,13 @@ export default function AuthPage() {
           console.error("Failed to decode token", e);
         }
 
-        navigate(redirectTo);
+        const pendingInvite = localStorage.getItem("pendingInviteToken");
+        if (pendingInvite) {
+          localStorage.removeItem("pendingInviteToken");
+          navigate(`/invite/${pendingInvite}`);
+        } else {
+          navigate(redirectTo);
+        }
       } else {
         await apiSignUp(form.username, form.email, form.password, form.confirm);
         alert("Account created! Please sign in.");

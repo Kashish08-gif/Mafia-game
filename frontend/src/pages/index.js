@@ -11,3 +11,4 @@ export { default as LoadingScreen } from "./game/LoadingScreen";
 export { default as RoleRevealPage } from "./game/RoleRevealPage";
 export { default as StorePage } from "./store/StorePage";
 export { default as SettingsPage } from "./store/SettingsPage";
+export { default as InviteAcceptPage } from "./social/InviteAcceptPage";

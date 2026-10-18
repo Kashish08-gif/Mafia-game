@@ -3,6 +3,7 @@
  * Provides getSocket(), disconnectSocket(), and default socket proxy object.
  */
 import { io } from 'socket.io-client';
+import { SOCKET_URL } from '../config/api.js';
 
 let socket = null;
 
@@ -14,8 +15,8 @@ export function getSocket() {
 
   const token = localStorage.getItem('token');
 
-  socket = io('http://localhost:5000', {
-    transports: ['websocket'],
+  socket = io(SOCKET_URL, {
+    transports: ['websocket', 'polling'],
     auth: { token },
     autoConnect: true,
     reconnectionAttempts: 5,

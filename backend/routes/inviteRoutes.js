@@ -21,7 +21,7 @@ router.post("/create", authMiddleware, async (req, res) => {
       expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), 
     });
 
-    const frontendBaseUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+    const frontendBaseUrl = (process.env.FRONTEND_URL || "http://localhost:5173").replace(/\/+$/, "");
     const inviteLink = `${frontendBaseUrl}/invite/${invite.token}`;
 
     res.status(201).json({

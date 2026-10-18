@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import axios from "axios";
 import { motion, AnimatePresence } from 'framer-motion';
-import { getUserData } from '../../services/userService.js';
+import { getUserData, updateUserProfile } from '../../services/userService.js';
 import { getLeagueByTrophies, LEAGUE_TIERS } from '../../shared/leagueConfig.js';
 import LeagueEmblem from '../../components/common/LeagueEmblem.jsx';
 import {
@@ -208,16 +208,7 @@ export default function ProfilePage() {
         formData.append("avatar", selectedDefault || avatar);
       }
 
-      const res = await axios.put(
-        `http://localhost:5000/api/profile`,
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const res = await updateUserProfile(token, formData);
 
       if (res.data.user.avatar) {
         const savedAvatar = res.data.user.avatar;

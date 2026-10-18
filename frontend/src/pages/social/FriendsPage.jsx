@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UserPlus, UserCheck, UserX, Search, Sparkles, Trophy, Users, Check, Clock, AlertTriangle, RefreshCw } from 'lucide-react';
+import { API_BASE_URL } from '../../config/api.js';
 
-const API = "http://localhost:5000";
+const API = API_BASE_URL;
 
 // Smart avatar: renders <img> for URLs, emoji <span> for everything else
 const isUrl = (val) => val && (val.startsWith('http') || val.startsWith('/') || val.startsWith('data:image'));
@@ -39,7 +40,7 @@ export default function FriendsPage() {
 
   const loadFriends = useCallback(async () => {
     try {
-      const res = await axios.get(`${API}/api/friends/list`, {
+      const res = await axios.get(`${API}/friends/list`, {
         headers: { Authorization: `Bearer ${getToken()}` },
       });
       setFriends(res.data || []);
@@ -50,7 +51,7 @@ export default function FriendsPage() {
 
   const loadRequests = useCallback(async () => {
     try {
-      const res = await axios.get(`${API}/api/friends/requests`, {
+      const res = await axios.get(`${API}/friends/requests`, {
         headers: { Authorization: `Bearer ${getToken()}` },
       });
       setRequests(res.data || []);
@@ -64,7 +65,7 @@ export default function FriendsPage() {
     setCommunityError(null);
     try {
       const params = search.trim() ? { search: search.trim() } : {};
-      const res = await axios.get(`${API}/api/friends/all-users`, {
+      const res = await axios.get(`${API}/friends/all-users`, {
         headers: { Authorization: `Bearer ${getToken()}` },
         params,
       });
@@ -100,7 +101,7 @@ export default function FriendsPage() {
   const sendRequest = async (targetUserId, targetUsername) => {
     try {
       await axios.post(
-        `${API}/api/friends/send`,
+        `${API}/friends/send`,
         { receiverId: targetUserId },
         { headers: { Authorization: `Bearer ${getToken()}` } }
       );
@@ -116,7 +117,7 @@ export default function FriendsPage() {
   const acceptRequest = async (senderId) => {
     try {
       await axios.put(
-        `${API}/api/friends/accept/${senderId}`,
+        `${API}/friends/accept/${senderId}`,
         {},
         { headers: { Authorization: `Bearer ${getToken()}` } }
       );
@@ -132,7 +133,7 @@ export default function FriendsPage() {
   const declineRequest = async (requestId) => {
     try {
       await axios.put(
-        `${API}/api/friends/reject/${requestId}`,
+        `${API}/friends/reject/${requestId}`,
         {},
         { headers: { Authorization: `Bearer ${getToken()}` } }
       );

@@ -5,6 +5,7 @@ import { createRoom } from '../../services/roomService.js';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import socket from '../../services/socket.js';
+import { API_BASE_URL } from '../../config/api.js';
 
 const MAPS = [
   { id: 'city', name: 'City Nights', desc: 'Neon-lit streets, dark alleys, urban crime.', icon: '🏙️', color: '#ff66b2' },
@@ -36,7 +37,7 @@ export default function CreateRoomPage() {
   useEffect(() => {
     async function loadFriends() {
       try {
-        const res = await axios.get("http://localhost:5000/api/friends/list", {
+        const res = await axios.get(`${API_BASE_URL}/friends/list`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setRealFriends(res.data || []);

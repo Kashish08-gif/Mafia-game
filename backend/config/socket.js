@@ -18,7 +18,9 @@ export const initializeSocket = (server) => {
     cors: {
       origin: "*",
       methods: ["GET", "POST"],
+      credentials: true,
     },
+    transports: ["websocket", "polling"],
   });
 
   io.on("connection", (socket) => {

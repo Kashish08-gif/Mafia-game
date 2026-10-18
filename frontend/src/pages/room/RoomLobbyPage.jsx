@@ -5,6 +5,7 @@ import { Users, Crown, LogOut, RefreshCw, Clock, Shield, Swords, Heart, User, Pl
 import { getRoomDetails, leaveRoom, startGame } from '../../services/roomService.js';
 import axios from 'axios';
 import socket from '../../services/socket.js';
+import { API_BASE_URL } from '../../config/api.js';
 
 const MAP_META = {
   city:    { name: 'City Nights',    icon: '🏙️', color: '#ff66b2' },
@@ -41,7 +42,7 @@ export default function RoomLobbyPage() {
     async function loadFriends() {
       try {
         const token = localStorage.getItem("token");
-        const res = await axios.get("http://localhost:5000/api/friends/list", {
+        const res = await axios.get(`${API_BASE_URL}/friends/list`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setRealFriends(res.data || []);
