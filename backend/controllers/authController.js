@@ -2,10 +2,9 @@ import { User } from "../models/user.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
-//* signIn handler
+// * signIn handler
 export const signIn = async (req, res) => {
   try {
-
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -15,11 +14,19 @@ export const signIn = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ email });
+    // Support signing in with either email or username
+    const trimmedInput = email.trim();
+    const user = await User.findOne({
+      $or: [
+        { email: trimmedInput.toLowerCase() },
+        { username: trimmedInput },
+      ],
+    });
+
     if (!user) {
       return res.status(404).json({
         success: false,
-        error: "User not found",
+        error: "Account not found with this email or username",
       });
     }
 
@@ -28,12 +35,12 @@ export const signIn = async (req, res) => {
     if (!isMatch) {
       return res.status(400).json({
         success: false,
-        message: "Invalid credentials",
+        error: "Invalid password",
       });
     }
 
     const token = jwt.sign(
-      { _id: user._id, email: user.email },
+      { _id: user._id, email: user.email, username: user.username },
       process.env.JWT_SECRET,
       { expiresIn: "7d" },
     );
@@ -42,16 +49,23 @@ export const signIn = async (req, res) => {
       success: true,
       message: "user signed-in successfully",
       token: token,
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        avatar: user.avatar,
+      },
     });
   } catch (error) {
+    console.error("[Auth] Sign in error:", error);
     return res.status(500).json({
       success: false,
-      error: "Internal Server Error",
+      error: error.message || "Internal Server Error",
     });
   }
 };
 
-//* signUp handler
+// * signUp handler
 export const signUp = async (req, res) => {
   try {
     const { username, email, password, confirmPassword } = req.body;
@@ -59,34 +73,70 @@ export const signUp = async (req, res) => {
     if (!username || !email || !password || !confirmPassword) {
       return res.status(400).json({
         success: false,
-        error: "Credentials not provided",
+        error: "Please fill in all required fields",
       });
     }
 
-    if (password != confirmPassword) {
+    if (password !== confirmPassword) {
       return res.status(400).json({
         success: false,
-        error: "password not match",
+        error: "Passwords do not match",
+      });
+    }
+
+    const cleanUsername = username.trim();
+    const cleanEmail = email.trim().toLowerCase();
+
+    // Check if username already exists
+    const existingUsername = await User.findOne({ username: cleanUsername });
+    if (existingUsername) {
+      return res.status(400).json({
+        success: false,
+        error: `Username "${cleanUsername}" is already taken. Please choose another username.`,
+      });
+    }
+
+    // Check if email already exists
+    const existingEmail = await User.findOne({ email: cleanEmail });
+    if (existingEmail) {
+      return res.status(400).json({
+        success: false,
+        error: `Email "${cleanEmail}" is already registered. Please sign in instead.`,
       });
     }
 
     const hashPassword = await bcrypt.hash(password, 10);
 
     const user = await User.create({
-      username: username,
-      email: email,
+      username: cleanUsername,
+      email: cleanEmail,
       password: hashPassword,
     });
 
     return res.status(201).json({
       success: true,
       message: "User signed-up successfully",
-      user: user,
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+      },
     });
   } catch (error) {
+    console.error("[Auth] Sign up error:", error);
+
+    // Handle MongoDB duplicate key error cleanly if race condition occurs
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern || {})[0] || "Field";
+      return res.status(400).json({
+        success: false,
+        error: `${field.charAt(0).toUpperCase() + field.slice(1)} is already in use. Please use another.`,
+      });
+    }
+
     return res.status(500).json({
       success: false,
-      error: "Internal Server Error",
+      error: error.message || "Internal Server Error",
     });
   }
 };
