@@ -45,7 +45,8 @@ const corsOptions = {
       !frontendEnv ||
       frontendEnv === "*" ||
       allowedOrigins.includes(incoming) ||
-      incoming.endsWith(".vercel.app")
+      incoming.endsWith(".vercel.app") ||
+      incoming.includes("vercel.app")
     ) {
       return callback(null, true);
     }
@@ -59,7 +60,6 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.options("*", cors(corsOptions));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
